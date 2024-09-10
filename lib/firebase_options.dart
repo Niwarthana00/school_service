@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCIUqmbEJqMJzrdVEQCWYv72ZlzDVqhOTc',
-    appId: '1:523087779755:android:91122e90ebfa8788fc64ee',
+    appId: '1:523087779755:android:9c8a4a823d9f2085fc64ee',
     messagingSenderId: '523087779755',
     projectId: 'schoolservice-7712d',
     storageBucket: 'schoolservice-7712d.appspot.com',
@@ -65,4 +65,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'schoolservice-7712d.appspot.com',
     iosBundleId: 'com.example.schoolService',
   );
+
 }
