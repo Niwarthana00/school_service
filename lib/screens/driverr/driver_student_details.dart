@@ -32,7 +32,7 @@ class _DriverStudentDetailsState extends State<DriverStudentDetails> {
   Future<List<Student>> fetchStudents() async {
     List<Student> studentList = [];
 
-    // Query the Firestore collection for users with userType 'parent'
+    // Query the Firestore collection for users with userType 'Parent'
     QuerySnapshot snapshot = await _firestore.collection('users')
         .where('userType', isEqualTo: 'Parent')
         .get();
@@ -45,6 +45,7 @@ class _DriverStudentDetailsState extends State<DriverStudentDetails> {
         phoneNumber: doc['phoneNumber'] ?? 'N/A', // Updated field name to phoneNumber
         grade: doc['grade'] ?? 'N/A', // Added grade field
         parentName: doc['name'] ?? 'N/A', // Fetch parent name from 'name' field
+        profilePicUrl: doc['studentProfilePicUrl'] ?? '', // Fetch student profile picture URL
       ));
     }
 
@@ -117,7 +118,7 @@ class _DriverStudentDetailsState extends State<DriverStudentDetails> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => StudentDetailPage(
-                                imageUrl: 'assets/images/avatar.png', // Static avatar image
+                                imageUrl: student.profilePicUrl, // Use student's profile picture URL
                                 studentName: student.fullName,
                                 address: student.address,
                                 phone: student.phoneNumber, // Updated to phoneNumber
@@ -157,7 +158,9 @@ class StudentCard extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           radius: 20.0, // Reduced image size
-          backgroundImage: AssetImage('assets/images/avatar.png'), // Static avatar image
+          backgroundImage: student.profilePicUrl.isNotEmpty
+              ? NetworkImage(student.profilePicUrl) // Use NetworkImage if URL is present
+              : AssetImage('assets/images/avatar.png') as ImageProvider, // Fallback to static avatar image
         ),
         title: Row(
           children: [
@@ -213,6 +216,7 @@ class Student {
   final String phoneNumber; // Updated field name to phoneNumber
   final String grade; // Added grade field
   final String parentName; // Added parentName field
+  final String profilePicUrl; // Added profilePicUrl field
 
   Student({
     required this.fullName,
@@ -220,5 +224,6 @@ class Student {
     required this.phoneNumber,
     required this.grade, // Added grade to constructor
     required this.parentName, // Added parentName to constructor
+    required this.profilePicUrl, // Added profilePicUrl to constructor
   });
 }

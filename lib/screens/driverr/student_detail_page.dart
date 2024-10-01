@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart'; // Import the url_launcher package
 
 class StudentDetailPage extends StatelessWidget {
-  final String imageUrl;
+  final String imageUrl;  // This should now be a network URL
   final String studentName;
   final String grade;
   final String address;
@@ -60,10 +60,10 @@ class StudentDetailPage extends StatelessWidget {
                   ],
                 ),
 
-                // Circle avatar
+                // Circle avatar using NetworkImage
                 CircleAvatar(
                   radius: 50.0,
-                  backgroundImage: AssetImage(imageUrl), // Use NetworkImage for network images
+                  backgroundImage: NetworkImage(imageUrl), // Change to NetworkImage
                 ),
                 SizedBox(height: 10),
               ],

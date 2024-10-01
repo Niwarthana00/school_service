@@ -46,8 +46,8 @@ class ParentDetails extends StatelessWidget {
                       // Displaying the profile picture
                       CircleAvatar(
                         radius: 40,
-                        backgroundImage: driverData['profilePicture'] != null
-                            ? NetworkImage(driverData['profilePicture']) // Use the URL from Firestore
+                        backgroundImage: driverData['profileImageUrl'] != null
+                            ? NetworkImage(driverData['profileImageUrl']) // Use the URL from Firestore
                             : AssetImage('assets/images/placeholder.png'), // Use a placeholder if no image
                       ),
                       SizedBox(height: 10),
