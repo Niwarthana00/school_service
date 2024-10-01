@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart'; // Firebase Authentication for logout
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore for user data
+import 'package:firebase_storage/firebase_storage.dart'; // Firebase Storage for images
 import 'package:school_service/screens/login.dart'; // Required for login screen navigation
 
 class ParentProfile extends StatefulWidget {
@@ -13,10 +14,12 @@ class ParentProfile extends StatefulWidget {
 class _ParentProfileState extends State<ParentProfile> {
   File? _image; // Variable to store selected image
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance; // Firebase Storage instance
   final ImagePicker _picker = ImagePicker(); // Image picker instance
   String name = '';
   String address = '';
   String phoneNumber = '';
+  String? imageUrl; // Variable to store the URL of the uploaded image
 
   @override
   void initState() {
@@ -33,6 +36,7 @@ class _ParentProfileState extends State<ParentProfile> {
         name = userData['name'];
         address = userData['address'];
         phoneNumber = userData['phoneNumber'];
+        imageUrl = userData['profilePicUrl']; // Fetch profile picture URL
       });
     }
   }
@@ -45,6 +49,38 @@ class _ParentProfileState extends State<ParentProfile> {
       setState(() {
         _image = File(pickedFile.path);
       });
+      await _uploadImageToStorage(); // Upload image after picking
+    }
+  }
+
+  // Upload image to Firebase Storage
+  Future<void> _uploadImageToStorage() async {
+    if (_image == null) return; // Exit if no image is selected
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Create a reference for the user's UID folder
+        Reference storageRef = _storage.ref().child('${user.uid}/parent/profile_pic.jpg');
+
+        // Upload the image file
+        await storageRef.putFile(_image!);
+
+        // Get the download URL
+        String downloadUrl = await storageRef.getDownloadURL();
+
+        // Update Firestore with the new profile picture URL
+        await _firestore.collection('users').doc(user.uid).update({'profilePicUrl': downloadUrl});
+
+        // Update local state
+        setState(() {
+          imageUrl = downloadUrl;
+        });
+
+        _showSuccessMessage('Profile picture updated successfully!');
+      }
+    } catch (e) {
+      _showErrorMessage('Failed to upload image. Please try again.');
     }
   }
 
@@ -135,50 +171,58 @@ class _ParentProfileState extends State<ParentProfile> {
           } else if (field == 'phoneNumber') {
             phoneNumber = value;
           }
+          _showSuccessMessage('Data updated successfully!');
         });
+        _showSuccessMessage('Data updated successfully!');
 
-        _showSuccessMessage();
       } catch (error) {
         // Display error SnackBar
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error, color: Colors.red),
-                SizedBox(width: 8),
-                Text('Failed to update data. Please try again.'),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
+        _showErrorMessage('Failed to update data. Please try again.');
       }
     }
   }
 
   // Function to show success message in AlertDialog
-  void _showSuccessMessage() {
+  void _showSuccessMessage(String message) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Icon(Icons.check_circle, color: Colors.green, size: 50),
           content: Text(
-            'Success!\nYour data has been updated successfully.',
+            message,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16),
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
+
+                // Close the dialog
               },
               child: Text('OK'),
             ),
           ],
         );
       },
+    );
+  }
+
+  // Function to show error message in SnackBar
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error, color: Colors.red),
+            SizedBox(width: 8),
+            Text(message),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 3),
+      ),
     );
   }
 
@@ -219,11 +263,11 @@ class _ParentProfileState extends State<ParentProfile> {
                         width: 100,
                         height: 100,
                         color: Colors.grey[300],
-                        child: _image == null
+                        child: imageUrl == null
                             ? Icon(Icons.person, size: 50) // Default icon
                             : ClipOval(
-                          child: Image.file(
-                            _image!,
+                          child: Image.network(
+                            imageUrl!, // Display the uploaded image
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -276,56 +320,11 @@ class _ParentProfileState extends State<ParentProfile> {
                 ],
               ),
             ),
-            // Content Section Header
-            Padding(
-              padding: const EdgeInsets.only(left: 0),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Color(0xFFFADDC4),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    'Content',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            // Content Section
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ListTile(
-                    leading: Icon(Icons.download),
-                    title: Text('Download'),
-                    onTap: () {
-                      // Add download functionality here
-                    },
-                  ),
-                ],
-              ),
-            ),
-            // Logout button at the bottom
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ElevatedButton(
-                onPressed: () => _logout(context),
-                child: Text('Logout'),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                  backgroundColor: Colors.red,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ),
+            SizedBox(height: 20),
+            // Logout Button
+            ElevatedButton(
+              onPressed: () => _logout(context),
+              child: Text('Logout'),
             ),
           ],
         ),
@@ -334,47 +333,50 @@ class _ParentProfileState extends State<ParentProfile> {
   }
 }
 
-// Custom curved shape for header
-class CurveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    var path = Path();
-    path.lineTo(0.0, size.height - 80);
-    var firstControlPoint = Offset(size.width / 2, size.height);
-    var firstEndPoint = Offset(size.width, size.height - 80);
-    path.quadraticBezierTo(firstControlPoint.dx, firstControlPoint.dy, firstEndPoint.dx, firstEndPoint.dy);
-    path.lineTo(size.width, 0.0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-}
-
-// Widget for displaying a detail row with edit functionality
+// Widget to display a single detail row with edit capability
 class DetailRow extends StatelessWidget {
   final IconData icon;
   final String text;
   final VoidCallback onEdit;
 
-  const DetailRow({required this.icon, required this.text, required this.onEdit});
+  const DetailRow({Key? key, required this.icon, required this.text, required this.onEdit}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.orange),
-          SizedBox(width: 16),
-          Expanded(child: Text(text, style: TextStyle(fontSize: 16))),
-          IconButton(
-            icon: Icon(Icons.edit, color: Colors.grey),
-            onPressed: onEdit,
-          ),
-        ],
+    return GestureDetector(
+      onTap: onEdit,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10.0),
+        child: Row(
+          children: [
+            Icon(icon, size: 24),
+            SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+            Icon(Icons.edit, size: 24), // Edit icon
+          ],
+        ),
       ),
     );
   }
+}
+
+// Custom clipper for curved header
+class CurveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.lineTo(0, size.height - 100);
+    path.quadraticBezierTo(size.width / 2, size.height, size.width, size.height - 100);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => true;
 }

@@ -26,7 +26,7 @@ class ParentDetails extends StatelessWidget {
           // Driver data
           var driverData = snapshot.data!.data() as Map<String, dynamic>;
 
-          return SingleChildScrollView( // Wrap content in SingleChildScrollView
+          return SingleChildScrollView(
             child: Column(
               children: [
                 // Top section with gradient and profile info
@@ -43,14 +43,12 @@ class ParentDetails extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // Displaying the profile picture
                       CircleAvatar(
                         radius: 40,
-                        backgroundColor: Colors.grey[300],
-                        child: Icon(
-                          Icons.person,
-                          size: 50,
-                          color: Colors.white,
-                        ),
+                        backgroundImage: driverData['profilePicture'] != null
+                            ? NetworkImage(driverData['profilePicture']) // Use the URL from Firestore
+                            : AssetImage('assets/images/placeholder.png'), // Use a placeholder if no image
                       ),
                       SizedBox(height: 10),
                       Text(
@@ -92,10 +90,7 @@ class ParentDetails extends StatelessWidget {
                       InfoRow(icon: Icons.location_on, text: driverData['address']),
                       InfoRow(icon: Icons.phone, text: driverData['phoneNumber']),
                       InfoRow(icon: Icons.directions_car, text: driverData['vehicleNumber']),
-                      InfoRow(
-                        icon: Icons.email,
-                        text: driverData['email'],
-                      ),
+                      InfoRow(icon: Icons.email, text: driverData['email']),
                     ],
                   ),
                 ),
@@ -109,7 +104,7 @@ class ParentDetails extends StatelessWidget {
                       // Message Button
                       ElevatedButton(
                         onPressed: () {
-                          // You can implement the message feature here
+                          // Implement message feature
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Color(0xFFFC995E),
@@ -142,7 +137,7 @@ class ParentDetails extends StatelessWidget {
                     ],
                   ),
                 ),
-                SizedBox(height: 20), // Add some space at the bottom
+                SizedBox(height: 20),
               ],
             ),
           );

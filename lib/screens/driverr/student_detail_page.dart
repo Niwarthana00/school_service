@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart'; // Import the url_launcher package
 
 class StudentDetailPage extends StatelessWidget {
   final String imageUrl;
@@ -20,73 +21,108 @@ class StudentDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Student Details'),
-        backgroundColor: Color(0xFFFC995E),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            // Navigate back when arrow is pressed
-            Navigator.pop(context);
-          },
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Profile Picture with Gradient Background
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Colors.orange.shade200, Colors.orange.shade400],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              padding: EdgeInsets.all(8.0), // Gradient padding around the avatar
-              child: CircleAvatar(
-                radius: 50.0,
-                backgroundColor: Colors.transparent, // Ensure transparency for the image
-                backgroundImage: AssetImage(imageUrl), // Update this to NetworkImage if using URLs
+      body: Column(
+        children: [
+          // Top section with gradient and avatar
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFFFD8B0), // Lighter shade to complement #FC995E
+                  Color(0xFFFC995E), // Main gradient color
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
             ),
-            SizedBox(height: 20),
-
-            // Student Details
-            DetailRow(label: 'Student name', value: studentName),
-            DetailRow(label: 'Grade', value: grade),
-            DetailRow(label: 'Address', value: address),
-            DetailRow(label: 'Phone', value: phone),
-            DetailRow(label: 'Parent name', value: parentName),
-
-            SizedBox(height: 20),
-
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            padding: EdgeInsets.symmetric(vertical: 40.0, horizontal: 16.0),
+            child: Column(
               children: [
-                IconButton(
-                  icon: Icon(Icons.message, color: Color(0xFFFC995E)),
-                  onPressed: () {
-                    // Handle message action
-                  },
-                  iconSize: 40.0,
+                // AppBar content
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.arrow_back, color: Colors.black),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                    Text(
+                      'Student Details',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 18.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Icon(Icons.more_vert, color: Colors.transparent), // To keep the title centered
+                  ],
                 ),
-                IconButton(
-                  icon: Icon(Icons.phone, color:Color(0xFFFC995E)),
-                  onPressed: () {
-                    // Handle phone action
-                  },
-                  iconSize: 40.0,
+
+                // Circle avatar
+                CircleAvatar(
+                  radius: 50.0,
+                  backgroundImage: AssetImage(imageUrl), // Use NetworkImage for network images
                 ),
+                SizedBox(height: 10),
               ],
             ),
-          ],
-        ),
+          ),
+
+          // Rest of the details
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Student Details
+                  DetailRow(label: 'Student name', value: studentName),
+                  DetailRow(label: 'Grade', value: grade),
+                  DetailRow(label: 'Address', value: address),
+                  DetailRow(label: 'Phone', value: phone),
+                  DetailRow(label: 'Parent name', value: parentName),
+
+                  SizedBox(height: 20),
+
+                  // Contact actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.message, color: Color(0xFFFC995E)),
+                        onPressed: () {
+                          // Handle message action
+                        },
+                        iconSize: 40.0,
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.phone, color: Color(0xFFFC995E)),
+                        onPressed: () {
+                          // Handle phone action - launch dialer
+                          _launchCaller(phone);
+                        },
+                        iconSize: 40.0,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  // Function to launch the dialer
+  void _launchCaller(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+    await launchUrl(launchUri);
   }
 }
 

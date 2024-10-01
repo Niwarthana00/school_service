@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // Firebase Storage import
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
@@ -18,10 +19,12 @@ class _StudentDetailsPageState extends State<StudentDetailsPage> {
   String address = '';
   String phoneNumber = '';
   String uid = ''; // For storing the logged-in user's UID
+  String? profilePicUrl; // To store the profile picture URL
 
   // Firebase instance
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance; // Firebase Storage instance
 
   // Method to pick image
   Future<void> _pickImage() async {
@@ -30,6 +33,39 @@ class _StudentDetailsPageState extends State<StudentDetailsPage> {
       setState(() {
         _image = File(pickedFile.path);
       });
+      // Upload the image to Firebase Storage
+      await _uploadImageToStorage();
+    }
+  }
+
+  // Method to upload image to Firebase Storage
+  Future<void> _uploadImageToStorage() async {
+    if (_image == null) return; // Exit if no image is selected
+
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        uid = currentUser.uid;
+        // Create a reference to Firebase Storage for the student's profile picture
+        Reference storageRef = _storage.ref().child('$uid/student/profile_pic.jpg');
+
+        // Upload the file
+        await storageRef.putFile(_image!);
+
+        // Get the download URL
+        String downloadUrl = await storageRef.getDownloadURL();
+
+        // Update Firestore with the new profile picture URL
+        await _firestore.collection('users').doc(uid).update({'studentProfilePicUrl': downloadUrl});
+
+        setState(() {
+          profilePicUrl = downloadUrl; // Update the state with the new URL
+        });
+
+        _showSuccessMessage('Profile picture updated successfully!');
+      }
+    } catch (e) {
+      _showErrorMessage('Failed to upload image. Please try again.');
     }
   }
 
@@ -46,6 +82,7 @@ class _StudentDetailsPageState extends State<StudentDetailsPage> {
           grade = userDoc['grade'];
           address = userDoc['address'];
           phoneNumber = userDoc['phoneNumber'];
+          profilePicUrl = userDoc['studentProfilePicUrl']; // Fetch the profile picture URL
         });
       } else {
         print("User document not found!");
@@ -59,19 +96,19 @@ class _StudentDetailsPageState extends State<StudentDetailsPage> {
       await _firestore.collection('users').doc(uid).update({field: newValue});
       // Fetch updated data to display on screen
       _fetchUserData();
-      _showSuccessMessage();
+      _showSuccessMessage('Data updated successfully!');
     }
   }
 
   // Method to show success message after saving data
-  void _showSuccessMessage() {
+  void _showSuccessMessage(String message) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Icon(Icons.check_circle, color: Colors.green, size: 50),
           content: Text(
-            'Success!\nYour data has been updated successfully.',
+            message,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16),
           ),
@@ -89,14 +126,14 @@ class _StudentDetailsPageState extends State<StudentDetailsPage> {
   }
 
   // Method to show error message
-  void _showErrorMessage() {
+  void _showErrorMessage(String message) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Icon(Icons.error, color: Colors.red, size: 50),
           content: Text(
-            'Error!\nThere was a problem updating your data.',
+            message,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16),
           ),
@@ -140,7 +177,7 @@ class _StudentDetailsPageState extends State<StudentDetailsPage> {
                   _updateUserData(fieldName, controller.text);
                   Navigator.of(context).pop(); // Close the dialog after saving
                 } else {
-                  _showErrorMessage(); // Show error if input is empty
+                  _showErrorMessage('Please enter a valid $fieldName.');
                 }
               },
               child: Text('Save'),
@@ -181,8 +218,10 @@ class _StudentDetailsPageState extends State<StudentDetailsPage> {
                 child: CircleAvatar(
                   radius: 60,
                   backgroundColor: Colors.grey[300],
-                  backgroundImage: _image != null ? FileImage(_image!) : null,
-                  child: _image == null
+                  backgroundImage: _image != null
+                      ? FileImage(_image!)
+                      : (profilePicUrl != null ? NetworkImage(profilePicUrl!) : null),
+                  child: _image == null && profilePicUrl == null
                       ? Icon(Icons.camera_alt, size: 40, color: Colors.white)
                       : null,
                 ),
@@ -211,16 +250,14 @@ class _StudentDetailsPageState extends State<StudentDetailsPage> {
               _buildDetailRow(Icons.phone, 'phoneNumber', phoneNumber),
               SizedBox(height: 30),
               // Generate QR Button
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => GetQRPage()),
-              );
-            },
-
-
-          child: Text(
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => GetQRPage()),
+                  );
+                },
+                child: Text(
                   'Generate QR',
                   style: TextStyle(fontSize: 18, color: Color(0xFFFFFFFF)),
                 ),
