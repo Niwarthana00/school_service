@@ -1,8 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart'; // Import the url_launcher package
 
+// Main widget for the application
+void main() {
+  runApp(MyApp());
+}
+
+// Main application widget
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Student Detail',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: StudentDetailPage(
+        imageUrl: 'https://example.com/profile.jpg', // Example image URL
+        studentName: 'John Doe',
+        grade: '5th Grade',
+        address: '123 Main St',
+        phone: '1234567890',
+        parentName: 'Jane Doe',
+      ),
+    );
+  }
+}
+
+// Student detail page
 class StudentDetailPage extends StatelessWidget {
-  final String imageUrl;  // This should now be a network URL
+  final String imageUrl; // This should now be a network URL
   final String studentName;
   final String grade;
   final String address;
@@ -60,10 +87,21 @@ class StudentDetailPage extends StatelessWidget {
                   ],
                 ),
 
-                // Circle avatar using NetworkImage
-                CircleAvatar(
-                  radius: 50.0,
-                  backgroundImage: NetworkImage(imageUrl), // Change to NetworkImage
+                // Circle avatar using NetworkImage wrapped in GestureDetector
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to the full-screen image page
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ImageFullScreenPage(imageUrl: imageUrl),
+                      ),
+                    );
+                  },
+                  child: CircleAvatar(
+                    radius: 50.0,
+                    backgroundImage: NetworkImage(imageUrl), // Change to NetworkImage
+                  ),
                 ),
                 SizedBox(height: 10),
               ],
@@ -123,6 +161,27 @@ class StudentDetailPage extends StatelessWidget {
       path: phoneNumber,
     );
     await launchUrl(launchUri);
+  }
+}
+
+// Full-screen image preview page
+class ImageFullScreenPage extends StatelessWidget {
+  final String imageUrl;
+
+  ImageFullScreenPage({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: Text('Image Preview'),
+        backgroundColor: Colors.black,
+      ),
+      body: Center(
+        child: Image.network(imageUrl), // Display the image
+      ),
+    );
   }
 }
 
