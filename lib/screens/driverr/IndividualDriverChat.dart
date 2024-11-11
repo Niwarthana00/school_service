@@ -1,40 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-class ParentChat extends StatefulWidget {
+class IndividualDriverChat extends StatefulWidget {
+  final String email;
+
+  IndividualDriverChat({required this.email});
+
   @override
-  _ParentChatState createState() => _ParentChatState();
+  _IndividualDriverChatState createState() => _IndividualDriverChatState();
 }
 
-class _ParentChatState extends State<ParentChat> {
+class _IndividualDriverChatState extends State<IndividualDriverChat> {
   final _messageController = TextEditingController();
-  final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
+  // Function to send message to Firestore
   void _sendMessage() async {
-    final user = _auth.currentUser;
-    if (user != null && _messageController.text.trim().isNotEmpty) {
-      await _firestore.collection('chats').doc('chatRoom').collection(user.email.toString()).add({
-        'text': _messageController.text,
-        'type': "parent",
-        'timestamp': FieldValue.serverTimestamp()
-      });
-      _messageController.clear();
-    }
+    await _firestore.collection('chats').doc('chatRoom').collection(widget.email).add({
+      'text': _messageController.text,
+      'type': "driver",  // Assuming 'driver' as the user type
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+    _messageController.clear();
   }
 
+  // Build the chat messages
   Widget _buildMessages() {
-    final user = _auth.currentUser;
-    if (user == null) {
-      return Center(child: Text("Please log in to see messages."));
-    }
-
     return StreamBuilder(
       stream: _firestore
           .collection('chats')
           .doc('chatRoom')
-          .collection(user.email.toString())
+          .collection(widget.email)
           .orderBy('timestamp')
           .snapshots(),
       builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
@@ -46,21 +42,18 @@ class _ParentChatState extends State<ParentChat> {
           itemCount: messages.length,
           itemBuilder: (context, index) {
             final message = messages[index];
-            final isMe = message['type'] == "parent";
+            final isMe = message['type'] == "driver";
             return isMe
-                ? buildSentMessage(
-                message['text'],
-                message['timestamp']?.toDate().toString() ?? "")
-                : buildReceivedMessage(
-                message['text'],
-                message['timestamp']?.toDate().toString() ?? "");
+                ? _buildSentMessage(message['text'], message['timestamp']?.toDate().toString() ?? "")
+                : _buildReceivedMessage(message['text'], message['timestamp']?.toDate().toString() ?? "");
           },
         );
       },
     );
   }
 
-  Widget buildSentMessage(String message, String time) {
+  // Widget for sent messages
+  Widget _buildSentMessage(String message, String time) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
       child: Row(
@@ -94,7 +87,8 @@ class _ParentChatState extends State<ParentChat> {
     );
   }
 
-  Widget buildReceivedMessage(String message, String time) {
+  // Widget for received messages
+  Widget _buildReceivedMessage(String message, String time) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
       child: Row(
@@ -133,20 +127,22 @@ class _ParentChatState extends State<ParentChat> {
     );
   }
 
+  // Build the entire chat screen UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Chat')),
       body: Column(
         children: [
-          Expanded(child: _buildMessages()),
-          buildMessageInputField(),
+          Expanded(child: _buildMessages()),  // Display chat messages
+          _buildMessageInputField(),  // Input field for new messages
         ],
       ),
     );
   }
 
-  Widget buildMessageInputField() {
+  // Widget for the message input field
+  Widget _buildMessageInputField() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.white,
@@ -158,7 +154,10 @@ class _ParentChatState extends State<ParentChat> {
               decoration: InputDecoration(hintText: "Write your message", border: InputBorder.none),
             ),
           ),
-          IconButton(icon: Icon(Icons.send, color: Color(0xFFFC995E)), onPressed: _sendMessage),
+          IconButton(
+            icon: Icon(Icons.send, color: Color(0xFFFC995E)),
+            onPressed: _sendMessage,  // Send the message when pressed
+          ),
         ],
       ),
     );

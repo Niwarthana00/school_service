@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,48 +13,47 @@ class GetQRPage extends StatefulWidget {
 }
 
 class _GetQRPageState extends State<GetQRPage> {
-  String qrData = "";
-  bool isLoading = true; // Loading state
+  String qrData = ""; // To hold user's email for QR generation
+  bool isLoading = false; // Loading state
   ScreenshotController screenshotController = ScreenshotController();
-  String filePath = ""; // Variable to store the file path
+  String filePath = ""; // To store saved file path
 
   @override
   void initState() {
     super.initState();
-    fetchQRData();
     _requestPermission();
+    _fetchUserEmail(); // Fetch email upon initialization
   }
 
-  Future<void> fetchQRData() async {
+  // Fetch the user's email from Firebase Auth and set it to qrData
+  Future<void> _fetchUserEmail() async {
+    setState(() {
+      isLoading = true; // Start loading
+    });
     try {
-      DocumentSnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore
-          .instance
-          .collection('qr_codes')
-          .doc('your_doc_id')
-          .get()
-          .timeout(Duration(seconds: 10));
-
-      if (snapshot.exists) {
-        setState(() {
-          qrData = snapshot.data()?['qr_info'] ?? '';
-          isLoading = false;
-        });
-      } else {
-        print("Document does not exist");
-        setState(() {
-          isLoading = false;
-          qrData = "No QR data available";
-        });
+      User? user = FirebaseAuth.instance.currentUser; // Get the current user
+      if (user != null) {
+        qrData = user.email ?? ""; // Set user's email to qrData
       }
     } catch (e) {
-      print("Error fetching data: $e");
+      print("Error fetching user email: $e");
+    } finally {
       setState(() {
-        isLoading = false;
-        qrData = "Error fetching QR data";
+        isLoading = false; // Stop loading
       });
     }
   }
 
+  // Request necessary permissions
+  Future<void> _requestPermission() async {
+    if (await Permission.storage.isDenied) {
+      await Permission.storage.request();
+    }
+    await Permission.manageExternalStorage.request();
+    await Permission.photos.request();
+  }
+
+  // Method to download the QR code as an image
   Future<void> _downloadQRCode() async {
     try {
       String fileName = 'qr_code_${DateTime.now().millisecondsSinceEpoch}.png';
@@ -62,16 +61,14 @@ class _GetQRPageState extends State<GetQRPage> {
           ExternalPath.DIRECTORY_DCIM);
 
       await Directory('${directory}/SchoolService').create(recursive: true);
-
-      filePath = '${directory}/SchoolService/$fileName'; // Set the file path
+      filePath = '${directory}/SchoolService/$fileName';
 
       await screenshotController.captureAndSave(
         '${directory}/SchoolService',
         fileName: fileName,
       );
 
-      // Show success dialog with file path
-      _showSuccessDialog(filePath);
+      _showSuccessDialog(filePath, qrData);
 
     } catch (e) {
       print("Error downloading QR code: $e");
@@ -84,18 +81,8 @@ class _GetQRPageState extends State<GetQRPage> {
     }
   }
 
-  Future<void> _requestPermission() async {
-    if (await Permission.storage.isDenied) {
-      await Permission.storage.request();
-    }
-
-    await Permission.manageExternalStorage.request();
-    await Permission.storage.request();
-    await Permission.photos.request();
-  }
-
-  // Success popup dialog
-  void _showSuccessDialog(String path) {
+  // Show success dialog with file path and email
+  void _showSuccessDialog(String path, String email) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -107,14 +94,13 @@ class _GetQRPageState extends State<GetQRPage> {
             ],
           ),
           content: Column(
-            mainAxisSize: MainAxisSize.min, // To fit content
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text("Your QR code has been saved successfully."),
               SizedBox(height: 10),
-              Text(
-                "File Path: $path", // Display the file path
-                style: TextStyle(color: Colors.black54),
-              ),
+              Text("File Path: $path", style: TextStyle(color: Colors.black54)),
+              SizedBox(height: 10),
+              Text("Email: $email", style: TextStyle(color: Colors.black54)),
             ],
           ),
           actions: <Widget>[
@@ -144,11 +130,8 @@ class _GetQRPageState extends State<GetQRPage> {
         ),
       ),
       body: isLoading
-          ? Center(
-        child: CircularProgressIndicator(),
-      )
-          : qrData.isNotEmpty && !qrData.startsWith("Error")
-          ? Column(
+          ? Center(child: CircularProgressIndicator()) // Show loading if fetching email
+          : Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SizedBox(height: 20),
@@ -167,10 +150,7 @@ class _GetQRPageState extends State<GetQRPage> {
             ),
             child: Column(
               children: [
-                Text(
-                  "Download your QR code",
-                  style: TextStyle(fontSize: 16),
-                ),
+                Text("Download your QR code", style: TextStyle(fontSize: 16)),
                 SizedBox(height: 10),
                 Divider(
                   thickness: 1,
@@ -187,7 +167,7 @@ class _GetQRPageState extends State<GetQRPage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: QrImageView(
-                      data: qrData,
+                      data: qrData, // QR code containing user's email
                       version: QrVersions.auto,
                       size: 200.0,
                     ),
@@ -206,8 +186,7 @@ class _GetQRPageState extends State<GetQRPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(0),
               ),
-              padding:
-              EdgeInsets.symmetric(horizontal: 80, vertical: 15),
+              padding: EdgeInsets.symmetric(horizontal: 80, vertical: 15),
               textStyle: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -215,12 +194,6 @@ class _GetQRPageState extends State<GetQRPage> {
             ),
           ),
         ],
-      )
-          : Center(
-        child: Text(
-          "Error: $qrData",
-          style: TextStyle(color: Colors.red, fontSize: 16),
-        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'driver_chat.dart';
@@ -12,9 +13,9 @@ class DriverHome extends StatefulWidget {
 }
 
 class _DriverHomeState extends State<DriverHome> {
-  int _currentIndex = 2; // Home is at the center of the Bottom Navigation
+  int _currentIndex = 2;
   final List<Widget> _pages = [
-    QRScanner(),
+    QRScannerScreen(),
     DriverStudentDetails(),
     DriverHomeScreen(),
     DriverChat(),
@@ -67,13 +68,62 @@ class DriverHomeScreen extends StatefulWidget {
 
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
   int _currentStep = 0;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _isUpdating = false;
 
-  final List<Map<String, dynamic>> _statusSteps = [
-    {"label": "Picked Up", "icon": Icons.check_circle},
-    {"label": "At School", "icon": Icons.home},
-    {"label": "Arrived", "icon": Icons.school},
-    {"label": "Ended", "icon": Icons.location_on},
-  ];
+  Future<void> _updateParentStatus() async {
+    setState(() {
+      _isUpdating = true;
+    });
+
+    try {
+      QuerySnapshot statusCheckSnapshot = await _firestore
+          .collection('users')
+          .where('userType', isEqualTo: 'Parent')
+          .get();
+
+      bool hasValidStudents = statusCheckSnapshot.docs.any(
+              (doc) => doc['status'] == 'morningPickup');
+
+      if (!hasValidStudents) {
+        _showResultDialog(
+          false,
+          'Invalid Status',
+          'No students found with morning pickup status. Please make sure students have been picked up first.',
+        );
+        return;
+      }
+
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('users')
+          .where('userType', isEqualTo: 'Parent')
+          .where('status', isEqualTo: 'morningPickup')
+          .get();
+
+      WriteBatch batch = _firestore.batch();
+      querySnapshot.docs.forEach((doc) {
+        batch.update(doc.reference, {'status': 'schoolDrop'});
+      });
+
+      await batch.commit();
+
+      _showResultDialog(
+        true,
+        'Status Updated Successfully',
+        'All students have been marked as dropped at school.',
+      );
+    } catch (e) {
+      _showResultDialog(
+        false,
+        'Error',
+        'Failed to update status: ${e.toString()}',
+      );
+    } finally {
+      setState(() {
+        _isUpdating = false;
+      });
+    }
+  }
 
   Future<void> _showConfirmationDialog() async {
     return showDialog<void>(
@@ -81,29 +131,102 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Are you sure you want to change the student status?'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: Text(
+            'Confirm School Drop',
+            style: TextStyle(
+              color: Color(0xFFFC995E),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to mark all students as dropped at school?',
+            style: TextStyle(fontSize: 16),
+          ),
           actions: <Widget>[
             TextButton(
-              child: Text('No'),
+              child: Text(
+                'No',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 16,
+                ),
+              ),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: Text('Yes'),
+              child: Text(
+                'Yes',
+                style: TextStyle(
+                  color: Color(0xFFFC995E),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               onPressed: () {
-                setState(() {
-                  // Change the status only if 'Yes' is pressed
-                  if (_currentStep < _statusSteps.length - 1) {
-                    _currentStep++;
-                  } else {
-                    _currentStep = -1; // Reset to -1 to indicate no status
-                  }
-                });
+                Navigator.of(context).pop();
+                _updateParentStatus();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showResultDialog(bool success, String title, String message) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: success ? Colors.green : Colors.red,
+                size: 30,
+              ),
+              SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: success ? Colors.green : Colors.red,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                'OK',
+                style: TextStyle(
+                  color: success ? Colors.green : Colors.red,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
           ],
+          backgroundColor: Colors.white,
         );
       },
     );
@@ -118,56 +241,82 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(height: 30),
-            _buildStatusBar(),
-            SizedBox(height: 30),
-            Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  _showConfirmationDialog();
-                },
-                child: Text(
-                  _currentStep >= 0 && _currentStep < _statusSteps.length - 1
-                      ? _statusSteps[_currentStep + 1]["label"]
-                      : "Start Trip", // Display next status or "Trip Ended"
-                  style: TextStyle(color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFFC995E),
-                  padding: EdgeInsets.symmetric(horizontal: 60, vertical: 10),
-                  minimumSize: Size(230, 50), // Set a larger width and height
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(0), // Remove curvature
-                  ),
-                ),
+            Text(
+              "Ensure all students scan their QR codes!",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 30),
-            Text("Ensure all students scan their QR codes!",
-                style: TextStyle(fontSize: 16)),
             SizedBox(height: 10),
             Center(
-              child: Image.asset('assets/images/scanner.gif', height: 200),
+              child: Image.asset(
+                'assets/images/scanner.gif',
+                height: 200,
+              ),
             ),
             SizedBox(height: 20),
             Center(
               child: ElevatedButton(
                 onPressed: () {
-                  // Handle QR scan button press
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => QRScannerScreen()),
+                  );
                 },
-                child: Text("SCAN", style: TextStyle(color: Colors.white)),
+                child: Text(
+                  "SCAN",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Color(0xFFFC995E),
                   padding: EdgeInsets.symmetric(horizontal: 100, vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.zero,
                   ),
+                  elevation: 2,
                 ),
               ),
             ),
             SizedBox(height: 30),
+            Center(
+              child: ElevatedButton(
+                onPressed: _isUpdating ? null : _showConfirmationDialog,
+                child: _isUpdating
+                    ? SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                    : Text(
+                  "Drop school",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFFC995E),
+                  padding: EdgeInsets.symmetric(horizontal: 80, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.zero,
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
             _buildInstructions(),
             SizedBox(height: 20),
-             _imageCarousel(),
+            _imageCarousel(),
             SizedBox(height: 30),
           ],
         ),
@@ -176,98 +325,51 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   }
 
   Widget _buildInstructions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "How to scan the QR",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        SizedBox(height: 10),
-        Text("1. Hold the QR code steady in front of the \n"
-            "    scanner.\n"),
-        Text("2. Ensure the code is clearly visible in the\n "
-            "    frame.\n"),
-        Text("3. Check the child's details after scanning.\n"),
-        Text("4. Adjust the distance if the scan doesn't work.\n"),
-        Text("5. Repeat the process for each child."),
-      ],
-    );
-  }
-
-  Widget _buildStatusBar() {
-    return Column(
-      children: [
-        LinearProgressIndicator(
-          value: _currentStep >= 0
-              ? (_currentStep + 1) / _statusSteps.length
-              : 0.0,
-          backgroundColor: Color(0xFFFAD7C5),
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFC995E)),
-          minHeight: 8,
-        ),
-        SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: _statusSteps.map((step) {
-            int index = _statusSteps.indexOf(step);
-            return _buildStatusIcon(step["icon"], step["label"], index);
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatusIcon(IconData icon, String label, int index) {
-    bool isActive = index == _currentStep;
-
-    return Column(
-      mainAxisSize:
-          MainAxisSize.min, // Use minimum size to prevent excess space
-      children: [
-        Icon(
-          icon,
-          color: isActive ? Color(0xFF7D4F1F) : Colors.grey,
-          size: 30,
-        ),
-        SizedBox(height: 5),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 8.0), // Add some padding
-          child: Text(
-            label,
-            textAlign: TextAlign.center, // Center-align the text
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "How to scan the QR",
             style: TextStyle(
-              color: isActive ? Color(0xFF7D4F1F) : Colors.grey,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Color(0xFFFC995E),
             ),
           ),
-        ),
-      ],
+          SizedBox(height: 10),
+          Text(
+            "Instruct students to scan the QR code at the entrance of the van. "
+                "Ensure that each student's status updates accordingly. Regular updates help ensure all students are accounted for.",
+            style: TextStyle(fontSize: 16),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _imageCarousel() {
-    final List<String> imgList = [
-      'assets/images/how_to_scan_qr1.png',
-      'assets/images/how_to_scan_qr2.png',
-      'assets/images/how_to_scan_qr3.png',
-    ];
-
     return CarouselSlider(
+      items: [
+        Image.asset("assets/images/1.png"),
+        Image.asset("assets/images/2.png"),
+        Image.asset("assets/images/3.png"),
+      ],
       options: CarouselOptions(
-        height: 150.0,
-        autoPlay: true,
+        height: 200,
         enlargeCenterPage: true,
+        autoPlay: true,
         aspectRatio: 16 / 9,
+        autoPlayCurve: Curves.fastOutSlowIn,
+        enableInfiniteScroll: true,
+        autoPlayAnimationDuration: Duration(milliseconds: 800),
         viewportFraction: 0.8,
       ),
-      items: imgList
-          .map((item) => Container(
-                child: Center(
-                  child: Image.asset(item, fit: BoxFit.cover, width: 1000),
-                ),
-              ))
-          .toList(),
     );
   }
 }

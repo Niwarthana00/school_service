@@ -149,22 +149,21 @@ class _ParentDetailsFormState extends State<ParentDetailsForm> {
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
                           try {
-                            // Save the data to Firestore
+                            // Save the data to Firestore with default status
                             await FirebaseFirestore.instance
                                 .collection('users')
                                 .doc(userId)
                                 .set(
-                                    {
-                                  'fullName': _fullName,
-                                  'grade': _grade,
-                                  'address': _address,
-                                  'phoneNumber': _phoneNumber,
-                                  'userType':
-                                      widget.userType, // Save userType as well
-                                },
-                                    SetOptions(
-                                        merge:
-                                            true)); // Use merge to update existing document
+                              {
+                                'fullName': _fullName,
+                                'grade': _grade,
+                                'address': _address,
+                                'phoneNumber': _phoneNumber,
+                                'userType': widget.userType,
+                                'status': 'homeDrop',
+                              },
+                              SetOptions(merge: true), // Use merge to update existing document
+                            );
 
                             // Show the success dialog
                             showDialog(
@@ -212,9 +211,9 @@ class _ParentDetailsFormState extends State<ParentDetailsForm> {
                                             context,
                                             MaterialPageRoute(
                                               builder: (context) =>
-                                                  LoginScreen(), // Pass the userType
+                                                  LoginScreen(),
                                             ),
-                                            (route) => false,
+                                                (route) => false,
                                           );
                                         },
                                         style: ElevatedButton.styleFrom(
@@ -236,7 +235,7 @@ class _ParentDetailsFormState extends State<ParentDetailsForm> {
                               },
                             );
                           } catch (e) {
-                            // If there's an error, show the error dialog
+                            // Error dialog
                             showDialog(
                               context: context,
                               builder: (BuildContext context) {
@@ -278,21 +277,20 @@ class _ParentDetailsFormState extends State<ParentDetailsForm> {
                                       SizedBox(height: 20),
                                       Row(
                                         mainAxisAlignment:
-                                            MainAxisAlignment.spaceEvenly,
+                                        MainAxisAlignment.spaceEvenly,
                                         children: [
                                           ElevatedButton(
                                             onPressed: () {
-                                              Navigator.pop(
-                                                  context); // Close the error dialog
+                                              Navigator.pop(context);
                                             },
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: Colors.green,
                                               padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 30,
-                                                      vertical: 15),
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 30,
+                                                  vertical: 15),
                                               shape:
-                                                  const RoundedRectangleBorder(
+                                              const RoundedRectangleBorder(
                                                 borderRadius: BorderRadius.zero,
                                               ),
                                             ),
@@ -304,19 +302,17 @@ class _ParentDetailsFormState extends State<ParentDetailsForm> {
                                           ),
                                           ElevatedButton(
                                             onPressed: () {
-                                              Navigator.pop(
-                                                  context); // Close the error dialog
-                                              setState(
-                                                  () {}); // Try again, reload the current form
+                                              Navigator.pop(context);
+                                              setState(() {});
                                             },
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: Colors.red,
                                               padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 30,
-                                                      vertical: 15),
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 30,
+                                                  vertical: 15),
                                               shape:
-                                                  const RoundedRectangleBorder(
+                                              const RoundedRectangleBorder(
                                                 borderRadius: BorderRadius.zero,
                                               ),
                                             ),
@@ -351,11 +347,10 @@ class _ParentDetailsFormState extends State<ParentDetailsForm> {
                     ),
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(
-                            context); // Navigate back to the SignupScreen
+                        Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black54,
+                        backgroundColor: Colors.grey[300],
                         padding: const EdgeInsets.symmetric(
                             horizontal: 40, vertical: 15),
                         shape: const RoundedRectangleBorder(
@@ -363,8 +358,8 @@ class _ParentDetailsFormState extends State<ParentDetailsForm> {
                         ),
                       ),
                       child: const Text(
-                        'BACK',
-                        style: TextStyle(color: Colors.white),
+                        'CANCEL',
+                        style: TextStyle(color: Colors.black),
                       ),
                     ),
                   ],

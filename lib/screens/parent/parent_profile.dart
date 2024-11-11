@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart'; // Firebase Authentication for logout
-import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore for user data
-import 'package:firebase_storage/firebase_storage.dart'; // Firebase Storage for images
-import 'package:school_service/screens/login.dart'; // Required for login screen navigation
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:school_service/screens/login.dart';
 
 class ParentProfile extends StatefulWidget {
   @override
@@ -12,14 +12,14 @@ class ParentProfile extends StatefulWidget {
 }
 
 class _ParentProfileState extends State<ParentProfile> {
-  File? _image; // Variable to store selected image
+  File? _image;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance; // Firebase Storage instance
-  final ImagePicker _picker = ImagePicker(); // Image picker instance
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final ImagePicker _picker = ImagePicker();
   String name = '';
   String address = '';
   String phoneNumber = '';
-  String? imageUrl; // Variable to store the URL of the uploaded image
+  String? imageUrl;
 
   @override
   void initState() {
@@ -27,7 +27,6 @@ class _ParentProfileState extends State<ParentProfile> {
     _fetchUserData();
   }
 
-  // Fetch user data from Firestore
   Future<void> _fetchUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -36,84 +35,42 @@ class _ParentProfileState extends State<ParentProfile> {
         name = userData['name'];
         address = userData['address'];
         phoneNumber = userData['phoneNumber'];
-        imageUrl = userData['profilePicUrl']; // Fetch profile picture URL
+        imageUrl = userData['profilePicUrl'];
       });
     }
   }
 
-  // Pick an image from the gallery
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-
     if (pickedFile != null) {
       setState(() {
         _image = File(pickedFile.path);
       });
-      await _uploadImageToStorage(); // Upload image after picking
+      await _uploadImageToStorage();
     }
   }
 
-  // Upload image to Firebase Storage
   Future<void> _uploadImageToStorage() async {
-    if (_image == null) return; // Exit if no image is selected
+    if (_image == null) return;
 
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Create a reference for the user's UID folder
         Reference storageRef = _storage.ref().child('${user.uid}/parent/profile_pic.jpg');
-
-        // Upload the image file
         await storageRef.putFile(_image!);
-
-        // Get the download URL
         String downloadUrl = await storageRef.getDownloadURL();
-
-        // Update Firestore with the new profile picture URL
         await _firestore.collection('users').doc(user.uid).update({'profilePicUrl': downloadUrl});
-
-        // Update local state
         setState(() {
           imageUrl = downloadUrl;
         });
+        _showSuccessDialog('Profile picture updated successfully!');
 
-        _showSuccessMessage('Profile picture updated successfully!');
       }
     } catch (e) {
       _showErrorMessage('Failed to upload image. Please try again.');
     }
   }
 
-  // Logout function with confirmation dialog
-  Future<void> _logout(BuildContext context) async {
-    bool shouldLogout = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Logout Confirmation'),
-        content: Text('Are you sure you want to log out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Logout'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldLogout) {
-      await FirebaseAuth.instance.signOut(); // Log out from Firebase
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-      );
-    }
-  }
-
-  // Function to show edit dialog
   Future<void> _showEditDialog(String field) async {
     TextEditingController controller = TextEditingController();
     String currentValue = '';
@@ -128,36 +85,35 @@ class _ParentProfileState extends State<ParentProfile> {
 
     controller.text = currentValue;
 
-    showDialog(
+    await showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Edit $field'),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(hintText: 'Enter new $field'),
+      builder: (context) => AlertDialog(
+        title: Text('Edit $field'),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: 'Enter new $field',
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-              },
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                await _updateUserData(field, controller.text);
-                Navigator.of(context).pop(); // Close dialog
-              },
-              child: Text('Save'),
-            ),
-          ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _updateUserData(field, controller.text);
+            },
+            child: Text('Save'),
+          ),
+        ],
+      ),
     );
   }
 
-  // Function to update user data in Firestore with success/error message
   Future<void> _updateUserData(String field, String value) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -171,51 +127,63 @@ class _ParentProfileState extends State<ParentProfile> {
           } else if (field == 'phoneNumber') {
             phoneNumber = value;
           }
-          _showSuccessMessage('Data updated successfully!');
         });
-        _showSuccessMessage('Data updated successfully!');
-
+        _showSuccessDialog('Updated successfully!');
       } catch (error) {
-        // Display error SnackBar
-        _showErrorMessage('Failed to update data. Please try again.');
+        _showErrorMessage('Failed to update. Please try again.');
       }
     }
   }
 
-  // Function to show success message in AlertDialog
-  void _showSuccessMessage(String message) {
+  void _showSuccessDialog(String message) {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Icon(Icons.check_circle, color: Colors.green, size: 50),
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16),
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-
-                // Close the dialog
-              },
-              child: Text('OK'),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 70,
+                ),
+                SizedBox(height: 20),
+                Text(
+                  message,
+                  style: TextStyle(fontSize: 18),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 20),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text(
+                    'OK',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
   }
 
-  // Function to show error message in SnackBar
   void _showErrorMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error, color: Colors.red),
+            Icon(Icons.error, color: Colors.white),
             SizedBox(width: 8),
             Text(message),
           ],
@@ -223,6 +191,44 @@ class _ParentProfileState extends State<ParentProfile> {
         backgroundColor: Colors.red,
         duration: Duration(seconds: 3),
       ),
+    );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Logout',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                      (route) => false,
+                );
+              },
+              child: Text(
+                'Logout',
+                style: TextStyle(color: Color(0xFFFC995E)),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -236,7 +242,6 @@ class _ParentProfileState extends State<ParentProfile> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Curved Image Header
             Stack(
               children: [
                 Container(
@@ -257,19 +262,17 @@ class _ParentProfileState extends State<ParentProfile> {
                   top: 140,
                   left: MediaQuery.of(context).size.width / 2 - 50,
                   child: GestureDetector(
-                    onTap: _pickImage, // Select image from gallery
+                    onTap: _pickImage,
                     child: ClipOval(
                       child: Container(
                         width: 100,
                         height: 100,
                         color: Colors.grey[300],
                         child: imageUrl == null
-                            ? Icon(Icons.person, size: 50) // Default icon
-                            : ClipOval(
-                          child: Image.network(
-                            imageUrl!, // Display the uploaded image
-                            fit: BoxFit.cover,
-                          ),
+                            ? Icon(Icons.person, size: 50)
+                            : Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
@@ -278,7 +281,6 @@ class _ParentProfileState extends State<ParentProfile> {
               ],
             ),
             SizedBox(height: 20),
-            // Name Display
             Text(
               name,
               style: TextStyle(
@@ -288,7 +290,6 @@ class _ParentProfileState extends State<ParentProfile> {
               ),
             ),
             SizedBox(height: 16),
-            // Details Section Header
             Padding(
               padding: const EdgeInsets.only(left: 0),
               child: Container(
@@ -308,7 +309,6 @@ class _ParentProfileState extends State<ParentProfile> {
                 ),
               ),
             ),
-            // Details Section
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -320,20 +320,38 @@ class _ParentProfileState extends State<ParentProfile> {
                 ],
               ),
             ),
-            SizedBox(height: 20),
-            // Logout Button
-            ElevatedButton(
-              onPressed: () => _logout(context),
-              child: Text('Logout'),
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 30),
+              child: Container(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _logout(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFFFC995E),
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.zero,
+                    ),
+                  ),
+                  child: Text(
+                    'Logout',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
       ),
+
     );
   }
 }
 
-// Widget to display a single detail row with edit capability
 class DetailRow extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -357,7 +375,7 @@ class DetailRow extends StatelessWidget {
                 style: TextStyle(fontSize: 16),
               ),
             ),
-            Icon(Icons.edit, size: 24), // Edit icon
+            Icon(Icons.edit, size: 24),
           ],
         ),
       ),
@@ -365,7 +383,6 @@ class DetailRow extends StatelessWidget {
   }
 }
 
-// Custom clipper for curved header
 class CurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {

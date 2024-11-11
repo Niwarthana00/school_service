@@ -43,20 +43,46 @@ class ParentDetails extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Displaying the profile picture
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundImage: driverData['profileImageUrl'] != null
-                            ? NetworkImage(driverData['profileImageUrl']) // Use the URL from Firestore
-                            : AssetImage('assets/images/placeholder.png'), // Use a placeholder if no image
+                      // Title "Driver Details"
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: Text(
+                          'Driver Details',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
                       ),
-                      SizedBox(height: 10),
-                      Text(
-                        driverData['fullName'] ?? 'No name provided',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                      // Clickable profile picture
+                      GestureDetector(
+                        onTap: () {
+                          if (driverData['profileImageUrl'] != null) {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return Dialog(
+                                  child: Container(
+                                    width: 300,
+                                    height: 300,
+                                    decoration: BoxDecoration(
+                                      image: DecorationImage(
+                                        image: NetworkImage(driverData['profileImageUrl']),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          }
+                        },
+                        child: CircleAvatar(
+                          radius: 60, // Increased size
+                          backgroundImage: driverData['profileImageUrl'] != null
+                              ? NetworkImage(driverData['profileImageUrl'])
+                              : AssetImage('assets/images/placeholder.png') as ImageProvider,
                         ),
                       ),
                     ],

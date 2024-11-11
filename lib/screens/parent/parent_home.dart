@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:school_service/screens/parent/parent_status.dart';
 import 'package:school_service/screens/parent/qr_generate.dart'; // Ensure correct import for QR page
+import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'parent_details.dart';
 import 'parent_payment.dart';
 import 'parent_chat.dart';
@@ -14,6 +15,7 @@ class ParentHome extends StatefulWidget {
 
 class _ParentHomeState extends State<ParentHome> {
   int _selectedIndex = 2; // Default to the home screen
+  final User? _currentUser = FirebaseAuth.instance.currentUser; // Retrieve the current user
 
   // List of pages to navigate to (excluding the home screen, we'll handle it separately)
   final List<Widget> _otherPages = [
@@ -53,11 +55,16 @@ class _ParentHomeState extends State<ParentHome> {
                         SizedBox(height: 10),
                         ElevatedButton(
                           onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => ParentStatus()), // Fixed navigation target
-                            );
+                            if (_currentUser != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ParentStatus(
+                                    userId: _currentUser!.uid, // Use dynamic user ID
+                                  ),
+                                ),
+                              );
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             foregroundColor: Colors.black,
@@ -111,7 +118,8 @@ class _ParentHomeState extends State<ParentHome> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => StudentDetailsPage()), // Fixed navigation target
+                                builder: (context) => StudentDetailsPage(),
+                              ),
                             );
                           },
                           style: ElevatedButton.styleFrom(
@@ -197,11 +205,4 @@ class _ParentHomeState extends State<ParentHome> {
       ),
     );
   }
-}
-
-void main() {
-  runApp(MaterialApp(
-    home: ParentHome(),
-    debugShowCheckedModeBanner: false,
-  ));
 }

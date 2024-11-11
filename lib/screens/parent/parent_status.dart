@@ -1,6 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ParentStatus extends StatelessWidget {
+  final String userId;
+
+  ParentStatus({required this.userId});
+
+  final Map<String, String> statusTitles = {
+    'morningPickup': 'Morning Pickup',
+    'schoolDrop': 'School Drop',
+    'schoolPickup': 'School Pickup',
+    'homeDrop': 'Home Drop',
+  };
+
+  final Map<String, String> statusDescriptions = {
+    'morningPickup': 'Your child has been picked up from home.',
+    'schoolDrop': 'Your child has arrived at school.',
+    'schoolPickup': 'Your child has been picked up from school.',
+    'homeDrop': 'Your child has been dropped off at home.',
+  };
+
+  bool isStatusCompleted(String currentStatus, String itemStatus) {
+    final statusOrder = ['morningPickup', 'schoolDrop', 'schoolPickup', 'homeDrop'];
+    final currentIndex = statusOrder.indexOf(currentStatus);
+    final itemIndex = statusOrder.indexOf(itemStatus);
+    return currentIndex >= itemIndex;
+  }
+
+  String getStatusDisplay(String status) {
+    switch(status) {
+      case 'morningPickup':
+        return 'In transit to school';
+      case 'schoolDrop':
+        return 'At school';
+      case 'schoolPickup':
+        return 'In transit to home';
+      case 'homeDrop':
+        return 'At home';
+      default:
+        return 'Status unknown';
+    }
+  }
+
+  Color getStatusBackgroundColor(String status) {
+    switch(status) {
+      case 'schoolDrop':
+        return Colors.green[100]!;
+      default:
+        return Colors.orange[100]!;
+    }
+  }
+
+  Color getStatusTextColor(String status) {
+    switch(status) {
+      case 'schoolDrop':
+        return Colors.green[800]!;
+      default:
+        return Colors.orange[800]!;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -8,10 +67,7 @@ class ParentStatus extends StatelessWidget {
         backgroundColor: Color(0xFFFC995E),
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            // Navigate back when the back arrow is pressed
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Student status',
@@ -22,131 +78,136 @@ class ParentStatus extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Color(0xFFFC995E),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(50),
-                bottomRight: Radius.circular(50),
-              ),
-            ),
-            child: Center(
-              child: Text(
-                'Live Status Updates\nChild\'s Journey',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Something went wrong'));
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+
+          final userData = snapshot.data?.data() as Map<String, dynamic>?;
+          final currentStatus = userData?['status'] as String? ?? '';
+          final profileUrl = userData?['studentProfilePicUrl'] as String?;
+
+          return Column(
+            children: [
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Color(0xFFFC995E),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(50),
+                    bottomRight: Radius.circular(50),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    'Live Status Updates\nChild\'s Journey',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          SizedBox(height: 30),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTimelineItem(
-                    context,
-                    isCompleted: true,
-                    title: 'Pickup from home',
-                    description: 'Your child has been picked up from home.',
-                  ),
-                  _buildTimelineItem(
-                    context,
-                    isCompleted: true,
-                    title: 'At school',
-                    description: 'Your child has arrived at school.',
-                  ),
-                  _buildTimelineItem(
-                    context,
-                    isCompleted: false,
-                    title: 'Pickup from school',
-                    description: 'Your child has been picked up from school.',
-                  ),
-                  _buildTimelineItem(
-                    context,
-                    isCompleted: false,
-                    title: 'Drop',
-                    description: 'Your child has been dropped off at home.',
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Card with profile photo and details
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              decoration: BoxDecoration(
-                color: Color(0xFFFED2B7), // Set the background color as requested
-                borderRadius: BorderRadius.circular(30), // Curved border
-              ),
-              child: Column(
-                children: [
-                  Row(
+              SizedBox(height: 30),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 30),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundImage: AssetImage('assets/images/avatar.png'),
-                      ),
-                      SizedBox(width: 15),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      ...statusTitles.entries.map((entry) => _buildTimelineItem(
+                        context,
+                        isCompleted: isStatusCompleted(currentStatus, entry.key),
+                        title: entry.value,
+                        description: statusDescriptions[entry.key] ?? '',
+                      )),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFED2B7),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
                         children: [
-                          Text(
-                            'Niwarthana Sathyanjali',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundImage: profileUrl != null
+                                ? NetworkImage(profileUrl)
+                                : AssetImage('assets/images/avatar.png') as ImageProvider,
                           ),
-                          SizedBox(height: 5),
-                          Row(
+                          SizedBox(width: 15),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[100],
-                                  borderRadius: BorderRadius.circular(15),
+                              Text(
+                                userData?['name'] ?? 'Student Name',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                                child: Text(
-                                  'At school',
-                                  style: TextStyle(
-                                    color: Colors.green[800],
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                              ),
+                              SizedBox(height: 5),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: getStatusBackgroundColor(currentStatus),
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    child: Text(
+                                      getStatusDisplay(currentStatus),
+                                      style: TextStyle(
+                                        color: getStatusTextColor(currentStatus),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
                         ],
                       ),
+                      SizedBox(height: 15),
+                      Text(
+                        'Stay updated on your child\'s journey to and from school.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                        ),
+                      ),
                     ],
                   ),
-                  SizedBox(height: 15),
-                  // Updated "Stay updated" text inside the card and smaller
-                  Text(
-                    'Stay updated on your child\'s journey to and from school.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13, // Smaller font size
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
