@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:school_service/providers/auth_provider.dart'; // Import AuthProvider
+import 'package:school_service/providers/auth_provider.dart';
 import 'package:school_service/screens/driverr/add_details.dart';
 import 'package:school_service/screens/parent/add_details_parent.dart';
-import 'login.dart'; // Import the Login screen
+import 'login.dart';
 
 class SignupScreen extends StatefulWidget {
-   String? userType;
+  final String? userType;
 
-  SignupScreen({ this.userType});
+  SignupScreen({this.userType});
 
   @override
   _SignupScreenState createState() => _SignupScreenState();
@@ -19,6 +19,88 @@ class _SignupScreenState extends State<SignupScreen> {
   String _email = '';
   String _password = '';
   String _fullName = '';
+  String _errorMessage = ''; // For modal error messages
+
+  // Email validation function
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your email';
+    }
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  }
+
+  // Password validation function
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your password';
+    }
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    return null;
+  }
+
+  // Full name validation function
+  String? _validateFullName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your full name';
+    }
+    return null;
+  }
+
+  void _showErrorModal(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          contentPadding: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          backgroundColor: Colors.white,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error, color: Colors.red, size: 50),
+              SizedBox(height: 15),
+              Text(
+                'Error',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.redAccent,
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.black87),
+              ),
+              SizedBox(height: 20),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Modal එක close කරයි
+                },
+                child: Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 15,
+
+                  ),
+                ),
+              )
+
+
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +129,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Color(0xFFFC995E).withOpacity(0.8), // Gradient color
+                        Color(0xFFFC995E).withOpacity(0.8),
                         Colors.transparent,
                       ],
                     ),
@@ -81,16 +163,16 @@ class _SignupScreenState extends State<SignupScreen> {
             left: 0,
             right: 0,
             child: Padding(
-              padding: const EdgeInsets.all(0),
+              padding: const EdgeInsets.all(16.0),
               child: Card(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20.0),
+                  borderRadius: BorderRadius.circular(0), // No border radius
                 ),
                 elevation: 8,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Form(
-                    key: _formKey, // Form key
+                    key: _formKey,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -101,16 +183,11 @@ class _SignupScreenState extends State<SignupScreen> {
                           decoration: InputDecoration(
                             labelText: 'Full Name',
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(0),
+                              borderRadius: BorderRadius.zero, // No border radius
                             ),
                           ),
                           onChanged: (value) => _fullName = value,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your full name';
-                            }
-                            return null;
-                          },
+                          validator: _validateFullName,
                         ),
                         SizedBox(height: 20),
                         // Email TextField
@@ -118,16 +195,11 @@ class _SignupScreenState extends State<SignupScreen> {
                           decoration: InputDecoration(
                             labelText: 'Email',
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(0),
+                              borderRadius: BorderRadius.zero, // No border radius
                             ),
                           ),
                           onChanged: (value) => _email = value,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your email';
-                            }
-                            return null;
-                          },
+                          validator: _validateEmail,
                         ),
                         SizedBox(height: 20),
                         // Password TextField
@@ -136,16 +208,11 @@ class _SignupScreenState extends State<SignupScreen> {
                           decoration: InputDecoration(
                             labelText: 'Password',
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(0),
+                              borderRadius: BorderRadius.zero, // No border radius
                             ),
                           ),
                           onChanged: (value) => _password = value,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your password';
-                            }
-                            return null;
-                          },
+                          validator: _validatePassword,
                         ),
                         SizedBox(height: 40),
                         // Continue Button
@@ -157,17 +224,18 @@ class _SignupScreenState extends State<SignupScreen> {
                                 await authProvider.signUp(
                                   _email,
                                   _password,
-                                  widget.userType ?? '', // Send the userType (Driver/Parent)
-                                  {'name': _fullName}, // Sign-up form data
+                                  widget.userType ?? '',
+                                  {'name': _fullName},
                                 );
 
-                                // Navigate to the details screen based on userType
+                                // Navigate to the appropriate details screen
                                 if (widget.userType == 'Driver') {
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => DriverDetailsForm(
-                                          userType: widget.userType ?? ''),
+                                        userType: widget.userType ?? '',
+                                      ),
                                     ),
                                   );
                                 } else if (widget.userType == 'Parent') {
@@ -175,13 +243,17 @@ class _SignupScreenState extends State<SignupScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => ParentDetailsForm(
-                                          userType: widget.userType ?? ''),
+                                        userType: widget.userType ?? '',
+                                      ),
                                     ),
                                   );
                                 }
                               } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(e.toString())),
+                                // Show error modal for Firebase exceptions
+                                _showErrorModal(
+                                  e.toString().contains('email-already-in-use')
+                                      ? 'This email is already registered. Please use another email.'
+                                      : 'An error occurred. Please try again.',
                                 );
                               }
                             }
@@ -190,7 +262,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             backgroundColor: Color(0xFFFC995E),
                             padding: EdgeInsets.symmetric(vertical: 15),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(0),
+                              borderRadius: BorderRadius.zero, // No border radius
                             ),
                           ),
                           child: Text(
@@ -205,7 +277,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             Expanded(child: Divider(thickness: 1)),
                             Padding(
                               padding:
-                                  const EdgeInsets.symmetric(horizontal: 10.0),
+                              const EdgeInsets.symmetric(horizontal: 10.0),
                               child: Text(
                                 'or use',
                                 style: TextStyle(color: Colors.grey),
@@ -215,27 +287,36 @@ class _SignupScreenState extends State<SignupScreen> {
                           ],
                         ),
                         SizedBox(height: 20),
-                        // Sign in with Google button
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            // Handle Google sign in logic
-                          },
-                          icon: Image.asset(
-                            'assets/images/google.png', // Replace with your Google icon path
-                            height: 24,
-                          ),
-                          label: Text('Sign in with Google'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            padding: EdgeInsets.symmetric(vertical: 15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(0),
+                        // Add Google Sign-In Button here
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              // Implement Google Sign-In functionality here
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(vertical: 15),
+                              backgroundColor: Colors.white,
                               side: BorderSide(color: Colors.grey),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(0),
+                              ),
+                            ),
+                            icon: Image.asset(
+                              'assets/images/google.png',
+                              width: 20,
+                              height: 20,
+                            ),
+                            label: Text(
+                              'Login with Google',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black,
+                              ),
                             ),
                           ),
                         ),
-                        SizedBox(height: 20),
+
                         // Login link
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,

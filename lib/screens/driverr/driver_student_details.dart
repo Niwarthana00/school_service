@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore package
-import 'student_detail_page.dart'; // Import the detail page
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'student_detail_page.dart';
 
 class DriverStudentDetails extends StatefulWidget {
   @override
@@ -8,23 +8,20 @@ class DriverStudentDetails extends StatefulWidget {
 }
 
 class _DriverStudentDetailsState extends State<DriverStudentDetails> {
-  // Firestore instance
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late Future<List<Student>> _students;
-  List<Student> _allStudents = []; // Store all students for filtering
-  String _searchQuery = ''; // Store the search query
-  final TextEditingController _searchController = TextEditingController(); // Search text controller
+  List<Student> _allStudents = [];
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    // Fetch the students data when the widget initializes
     _students = fetchStudents();
 
-    // Listener for the search text input
     _searchController.addListener(() {
       setState(() {
-        _searchQuery = _searchController.text; // Update the search query
+        _searchQuery = _searchController.text;
       });
     });
   }
@@ -32,25 +29,30 @@ class _DriverStudentDetailsState extends State<DriverStudentDetails> {
   Future<List<Student>> fetchStudents() async {
     List<Student> studentList = [];
 
-    // Query the Firestore collection for users with userType 'Parent'
-    QuerySnapshot snapshot = await _firestore.collection('users')
-        .where('userType', isEqualTo: 'Parent')
-        .get();
+    try {
+      QuerySnapshot snapshot = await _firestore.collection('users')
+          .where('userType', isEqualTo: 'Parent')
+          .get();
 
-    // Create Student objects from the fetched documents
-    for (var doc in snapshot.docs) {
-      studentList.add(Student(
-        fullName: doc['fullName'],
-        address: doc['address'],
-        phoneNumber: doc['phoneNumber'] ?? 'N/A', // Updated field name to phoneNumber
-        grade: doc['grade'] ?? 'N/A', // Added grade field
-        parentName: doc['name'] ?? 'N/A', // Fetch parent name from 'name' field
-        profilePicUrl: doc['studentProfilePicUrl'] ?? '', // Fetch student profile picture URL
-      ));
+      for (var doc in snapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+        studentList.add(Student(
+          fullName: data['fullName'] ?? 'Unknown',
+          address: data['address'] ?? 'No address provided',
+          phoneNumber: data['phoneNumber'] ?? 'Not available',
+          grade: data['grade'] ?? 'Not specified',
+          parentName: data['name'] ?? 'Unknown',
+          profilePicUrl: data['studentProfilePicUrl'] ?? '',
+        ));
+      }
+
+      _allStudents = studentList;
+      return studentList;
+    } catch (e) {
+      print('Error fetching students: $e');
+      return [];
     }
-
-    _allStudents = studentList; // Store all students for filtering
-    return studentList;
   }
 
   @override
@@ -64,10 +66,9 @@ class _DriverStudentDetailsState extends State<DriverStudentDetails> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Search Bar
             Container(
               decoration: BoxDecoration(
-                color: Color(0xFFFFE6D9), // Updated background color
+                color: Color(0xFFFFE6D9),
                 borderRadius: BorderRadius.circular(30.0),
                 boxShadow: [
                   BoxShadow(
@@ -77,7 +78,7 @@ class _DriverStudentDetailsState extends State<DriverStudentDetails> {
                 ],
               ),
               child: TextField(
-                controller: _searchController, // Set the controller
+                controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Search by name',
                   prefixIcon: Icon(Icons.search),
@@ -87,8 +88,6 @@ class _DriverStudentDetailsState extends State<DriverStudentDetails> {
               ),
             ),
             SizedBox(height: 20),
-
-            // Student List
             Expanded(
               child: FutureBuilder<List<Student>>(
                 future: _students,
@@ -101,7 +100,6 @@ class _DriverStudentDetailsState extends State<DriverStudentDetails> {
                     return Center(child: Text('No parents found.'));
                   }
 
-                  // Display the filtered list of students
                   List<Student> students = snapshot.data!;
                   List<Student> filteredStudents = students.where((student) {
                     return student.fullName.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -113,17 +111,16 @@ class _DriverStudentDetailsState extends State<DriverStudentDetails> {
                       final student = filteredStudents[index];
                       return GestureDetector(
                         onTap: () {
-                          // Navigate to student detail page when tapped
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => StudentDetailPage(
-                                imageUrl: student.profilePicUrl, // Use student's profile picture URL
+                                imageUrl: student.profilePicUrl,
                                 studentName: student.fullName,
                                 address: student.address,
-                                phone: student.phoneNumber, // Updated to phoneNumber
-                                parentName: student.parentName, // Pass parentName to detail page
-                                grade: student.grade, // Passing grade to the detail page
+                                phone: student.phoneNumber,
+                                parentName: student.parentName,
+                                grade: student.grade,
                               ),
                             ),
                           );
@@ -156,19 +153,23 @@ class StudentCard extends StatelessWidget {
       ),
       elevation: 3,
       child: ListTile(
+        contentPadding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
         leading: CircleAvatar(
-          radius: 20.0, // Reduced image size
+          radius: 20.0,
           backgroundImage: student.profilePicUrl.isNotEmpty
-              ? NetworkImage(student.profilePicUrl) // Use NetworkImage if URL is present
-              : AssetImage('assets/images/avatar.png') as ImageProvider, // Fallback to static avatar image
+              ? NetworkImage(student.profilePicUrl)
+              : AssetImage('assets/images/avatar.png') as ImageProvider,
         ),
         title: Row(
           children: [
-            Text(
-              student.fullName,
-              style: TextStyle(
-                fontSize: 12.0, // Reduced text size
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                student.fullName,
+                style: TextStyle(
+                  fontSize: 12.0,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             SizedBox(width: 8.0),
@@ -182,25 +183,19 @@ class StudentCard extends StatelessWidget {
             ),
           ],
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        subtitle: Row(
           children: [
-            Row(
-              children: [
-                Icon(Icons.location_on, size: 14.0, color: Colors.black26), // Location icon
-                SizedBox(width: 4.0),
-                Expanded(
-                  child: Text(
-                    student.address,
-                    style: TextStyle(
-                      fontSize: 10.0, // Reduced address font size
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+            Icon(Icons.location_on, size: 14.0, color: Colors.black26),
+            SizedBox(width: 4.0),
+            Expanded(
+              child: Text(
+                student.address,
+                style: TextStyle(
+                  fontSize: 10.0,
                 ),
-              ],
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            SizedBox(height: 4.0),
           ],
         ),
         trailing: Icon(Icons.chevron_right),
@@ -209,21 +204,20 @@ class StudentCard extends StatelessWidget {
   }
 }
 
-// Student model class
 class Student {
   final String fullName;
   final String address;
-  final String phoneNumber; // Updated field name to phoneNumber
-  final String grade; // Added grade field
-  final String parentName; // Added parentName field
-  final String profilePicUrl; // Added profilePicUrl field
+  final String phoneNumber;
+  final String grade;
+  final String parentName;
+  final String profilePicUrl;
 
   Student({
     required this.fullName,
     required this.address,
     required this.phoneNumber,
-    required this.grade, // Added grade to constructor
-    required this.parentName, // Added parentName to constructor
-    required this.profilePicUrl, // Added profilePicUrl to constructor
+    required this.grade,
+    required this.parentName,
+    required this.profilePicUrl,
   });
 }

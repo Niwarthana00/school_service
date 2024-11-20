@@ -4,8 +4,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:school_service/screens/driverr/driver_home.dart';
 import 'package:school_service/screens/parent/parent_home.dart';
-import 'package:school_service/screens/signup_screen.dart';
 import 'package:school_service/screens/start.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
+  late String email,password,username,proPic;
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
@@ -25,19 +26,38 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
+        await FirebaseAuth.instance.signOut();
+        email=_emailController.text;
+        password=_passwordController.text;
         UserCredential userCredential = await FirebaseAuth.instance
             .signInWithEmailAndPassword(
-            email: _emailController.text,
-            password: _passwordController.text);
+          email: email,
+          password: password,
+        );
 
         if (userCredential.user != null) {
-          String? userType = await _getUserType(userCredential.user!.uid);
-          _navigateBasedOnUserType(userType);
+          try {
+            username = await _getUserName(userCredential.user!.uid) ?? 'Unknown';
+            proPic = await _getUserproPic(userCredential.user!.uid) ?? '';
+            String? userType = await _getUserType(userCredential.user!.uid);
+
+            if (userType != null) {
+              _navigateBasedOnUserType(userType);
+            } else {
+              _showErrorModal('Unable to determine user type');
+            }
+          } catch (e) {
+            _showErrorModal('Error retrieving user details');
+          }
         }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: $e')),
-        );
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'user-not-found' || e.code == 'wrong-password') {
+          _showErrorModal('Incorrect email or password.');
+        } else if (e.code == 'invalid-email') {
+          _showErrorModal('Invalid email format.');
+        } else {
+          _showErrorModal('Incorrect email or password.');
+        }
       } finally {
         setState(() {
           _isLoading = false;
@@ -56,8 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
           idToken: googleAuth.idToken,
         );
 
-        UserCredential userCredential = await FirebaseAuth.instance
-            .signInWithCredential(credential);
+        UserCredential userCredential =
+        await FirebaseAuth.instance.signInWithCredential(credential);
 
         if (userCredential.user != null) {
           String? userType = await _getUserType(userCredential.user!.uid);
@@ -65,9 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Google Sign-In failed: $e')),
-      );
+      _showErrorModal('Google Sign-In failed. Please try again.');
     }
   }
 
@@ -88,24 +106,129 @@ class _LoginScreenState extends State<LoginScreen> {
       print('Error fetching userType: $e');
       return null;
     }
+  }  Future<String?> _getUserName(String uid) async {
+    try {
+      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (userDoc.exists) {
+        return userDoc.data()?['name'];
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching name: $e');
+      return null;
+    }
+  } Future<String?> _getUserproPic(String uid) async {
+    try {
+      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (userDoc.exists) {
+        return userDoc.data()?['profilePicUrl'];
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching name: $e');
+      return null;
+    }
   }
 
-  void _navigateBasedOnUserType(String? userType) {
+  Future<void> _navigateBasedOnUserType(String? userType) async {
     if (userType == 'Driver') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => DriverHome()),
       );
     } else if (userType == 'Parent') {
+
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      // Retrieve existing users
+      List<String>? users = prefs.getStringList('users') ?? [];
+
+      bool notExists=true;
+      for (var element in users) {
+        List<String> parts = element.split('|');
+        if(email==parts[1]){
+          notExists=false;
+        }
+      }
+
+      if(notExists){
+       users.add(("$username|$email|$proPic|$password"));
+      }
+      await prefs.setStringList('users', users);
+
+
       Navigator.pushReplacement(
         context,
+
         MaterialPageRoute(builder: (context) => ParentHome()),
+
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('User type not recognized.')),
-      );
+      _showErrorModal('User type not recognized.');
     }
+  }
+
+  void _showErrorModal(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          contentPadding: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          backgroundColor: Colors.white,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error, color: Colors.red, size: 50),
+              SizedBox(height: 15),
+              Text(
+                'Error',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.redAccent,
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.black87),
+              ),
+              SizedBox(height: 20),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Modal එක close කරයි
+              },
+              child: Text(
+                'OK',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 15,
+
+                ),
+              ),
+            )
+
+
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -259,8 +382,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                                 Padding(
-                                  padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
                                   child: Text(
                                     'or use',
                                     style: TextStyle(color: Colors.grey),
@@ -289,12 +412,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 icon: Image.asset(
                                   'assets/images/google.png',
-                                  height: 24,
+                                  width: 20,
+                                  height: 20,
                                 ),
                                 label: Text(
-                                  'Sign in with Google',
+                                  'Login with Google',
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 16,
                                     color: Colors.black,
                                   ),
                                 ),
@@ -313,19 +437,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                          builder: (context) => Start()),
+                                          builder: (context) =>
+                                              Start()),
                                     );
                                   },
                                   child: Text(
-                                    'Sign Up',
+                                    'Register',
                                     style: TextStyle(
-                                      color: Color(0xFFFC995E),
+                                      color: Colors.orange,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ],
+
+
                         ),
                       ),
                     ),

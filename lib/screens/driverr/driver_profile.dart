@@ -44,10 +44,36 @@ class _DriverProfileState extends State<DriverProfile> {
   }
 
   Future<void> _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              },
+              child: Text(
+              'Logout',
+              style: TextStyle(color: Color(0xFFFC995E)),
+              ),
+                    ),
+
+          ],
+        );
+      },
     );
   }
 
@@ -303,34 +329,30 @@ class _DriverProfileState extends State<DriverProfile> {
               onTap: () => _openEditDialog('vehicleNumber'),
             ),
             SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              color: Color(0xFFFADDC4),
-              padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Content',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+
+
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 30),
+              child: Container(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _logout(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFFFC995E),
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.zero,
+                    ),
+                  ),
+                  child: Text(
+                    'Logout',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: ListTile(
-                leading: Icon(Icons.download),
-                title: Text('Download'),
-                onTap: () {},
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: ListTile(
-                leading: Icon(Icons.logout),
-                title: Text('Logout'),
-                onTap: () => _logout(context),
               ),
             ),
           ],
@@ -371,4 +393,3 @@ void main() async {
   await Firebase.initializeApp();
   runApp(MaterialApp(home: DriverProfile()));
 }
-

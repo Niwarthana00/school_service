@@ -3,9 +3,50 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'IndividualDriverChat.dart';
 
-class DriverChat extends StatelessWidget {
+class DriverChat extends StatefulWidget {
+  @override
+  _DriverChatState createState() => _DriverChatState();
+}
+
+class _DriverChatState extends State<DriverChat> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
+  List<Student> studentList = [];
+  List<Student> filteredStudentList = [];
+  TextEditingController _searchController = TextEditingController();
+  Map<String, int> unreadMessageCounts = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUnreadMessageCounts();
+  }
+
+  void _fetchUnreadMessageCounts() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    QuerySnapshot messagesSnapshot = await _firestore
+        .collection('messages')
+        .where('receiverEmail', isEqualTo: currentUser.email)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    setState(() {
+      unreadMessageCounts = {};
+      for (var doc in messagesSnapshot.docs) {
+        String senderEmail = doc['senderEmail'];
+        unreadMessageCounts[senderEmail] =
+            (unreadMessageCounts[senderEmail] ?? 0) + 1;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +76,15 @@ class DriverChat extends StatelessWidget {
               ),
             ),
             child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  filteredStudentList = studentList
+                      .where((student) =>
+                      student.fullName.toLowerCase().contains(value.toLowerCase()))
+                      .toList();
+                });
+              },
               decoration: InputDecoration(
                 filled: true,
                 fillColor: Color(0xFFFFE6D9),
@@ -57,41 +107,48 @@ class DriverChat extends StatelessWidget {
             return Center(child: CircularProgressIndicator());
           }
 
-          var studentList = snapshot.data!.docs.map((doc) {
+          studentList = snapshot.data!.docs.map((doc) {
             return Student(
-              fullName: doc['fullName'],
-              address: doc['address'],
+              fullName: doc['fullName'] ?? 'Unknown',
+              address: doc['address'] ?? 'N/A',
               phoneNumber: doc['phoneNumber'] ?? 'N/A',
               grade: doc['grade'] ?? 'N/A',
               parentName: doc['name'] ?? 'N/A',
-              profilePicUrl: doc['studentProfilePicUrl'] ?? '',
-              email: doc['email'], // Ensure email is included in the doc
+              profilePicUrl: doc.data().toString().contains('studentProfilePicUrl')
+                  ? doc['studentProfilePicUrl']
+                  : '',
+              email: doc['email'] ?? 'N/A',
             );
           }).toList();
 
+          var displayList = filteredStudentList.isNotEmpty ? filteredStudentList : studentList;
+
           return ListView.builder(
             padding: EdgeInsets.all(8),
-            itemCount: studentList.length,
+            itemCount: displayList.length,
             itemBuilder: (context, index) {
-              var student = studentList[index];
+              var student = displayList[index];
+              int unreadCount = unreadMessageCounts[student.email] ?? 0;
+
               return Column(
                 children: [
                   GestureDetector(
                     onTap: () {
-                      // Navigate to IndividualDriverChat and pass the email
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => IndividualDriverChat(
-                            email: student.email, // Pass the email to the chat page
+                            email: student.email,
                           ),
                         ),
                       );
                     },
                     child: ChatListTile(
                       name: student.fullName,
-                      lastMessage: student.phoneNumber, // Placeholder
-                      timestamp: student.phoneNumber, // Placeholder
+                      lastMessage: student.phoneNumber,
+                      timestamp: student.phoneNumber,
+                      profilePicUrl: student.profilePicUrl,
+                      unreadMessageCount: unreadCount,
                     ),
                   ),
                   Divider(
@@ -112,18 +169,22 @@ class ChatListTile extends StatelessWidget {
   final String name;
   final String lastMessage;
   final String timestamp;
+  final String profilePicUrl;
+  final int unreadMessageCount;
 
   ChatListTile({
     required this.name,
     required this.lastMessage,
     required this.timestamp,
+    required this.profilePicUrl,
+    this.unreadMessageCount = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       leading: CircleAvatar(
-        backgroundImage: AssetImage('assets/images/avatar.png'),
+        backgroundImage: _getProfileImage(),
       ),
       title: Text(
         name,
@@ -145,13 +206,37 @@ class ChatListTile extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           SizedBox(height: 4),
-          CircleAvatar(
+          unreadMessageCount > 0
+              ? CircleAvatar(
+            radius: 10,
+            backgroundColor: Colors.red,
+            child: Text(
+              unreadMessageCount.toString(),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          )
+              : CircleAvatar(
             radius: 6,
             backgroundColor: Colors.grey.shade300,
           ),
         ],
       ),
     );
+  }
+
+  ImageProvider _getProfileImage() {
+    if (profilePicUrl != null && profilePicUrl.isNotEmpty) {
+      try {
+        return NetworkImage(profilePicUrl);
+      } catch (e) {
+        return AssetImage('assets/images/avatar.png');
+      }
+    }
+    return AssetImage('assets/images/avatar.png');
   }
 }
 
@@ -171,6 +256,6 @@ class Student {
     required this.grade,
     required this.parentName,
     required this.profilePicUrl,
-    required this.email, // Added email
+    required this.email,
   });
 }

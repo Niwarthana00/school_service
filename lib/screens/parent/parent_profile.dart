@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:school_service/screens/AccountPickerPage.dart';
 import 'package:school_service/screens/login.dart';
 
 class ParentProfile extends StatefulWidget {
@@ -217,7 +218,7 @@ class _ParentProfileState extends State<ParentProfile> {
                 await FirebaseAuth.instance.signOut();
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  MaterialPageRoute(builder: (context) => AccountPickerPage()),
                       (route) => false,
                 );
               },
@@ -229,6 +230,14 @@ class _ParentProfileState extends State<ParentProfile> {
           ],
         );
       },
+    );
+  }
+
+  void _switchToAnotherAccount(BuildContext context) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+          (route) => false,
     );
   }
 
@@ -344,10 +353,25 @@ class _ParentProfileState extends State<ParentProfile> {
                 ),
               ),
             ),
+
+
+            GestureDetector(
+              onTap: () => _switchToAnotherAccount(context),
+              child: Container(
+                padding: EdgeInsets.all(12),
+                width: 100,
+                color: Colors.grey[200],
+                child: Center(
+                  child: Text(
+                    'Switch to Another Account',
+                    style: TextStyle(fontSize: 16, color: Color(0xFFFC995E)),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
-
     );
   }
 }
