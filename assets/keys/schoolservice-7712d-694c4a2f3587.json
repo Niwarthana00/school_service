@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "schoolservice-7712d",
+  "private_key_id": "72a9efb6364906621c4b90e6ac0a9c3f65a25bb0",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCqb4Yg/VrNUa37\nGLcwHhW9aEyf+y8OhzyKmVUcQRI3ngraObQ71mAxTbBZ9tSZNYJ5ZQS9+jwNR9ka\nSpatdHEja/AsEJpFAzzEv45YA78w0Ly58hhFLFDtZB0DQJWM5DEq6rbyt1Ui09XY\nSWzmXIhwa3cAR7pemOAipty3/h5fEfQYCWPi3jkAXUF5XdOK0ct5WEx4XrXyaG42\n6EuqZWWJq87wHQ3ZiB0ZpxAJ5CWcXWuTNR5CuKINsNaOOm8yCWz4c+J1DVWwm9vc\n1X/IGm2T2Kj0fCi4Co0Sm6zsz3tUJ4i42tViwsy+tWfigHGH1YnMODfER/B9cQrx\nRRTaq3+fAgMBAAECggEAANuFdE5e0er39DBlpSchmN7DeDKW7q/p5ncEoWflEucY\nhp2epEIp3Kr5qecDFkkuxN7sT1Fzp+VzLchrFrlkMFVNOguHmyw3h8meaEGfxQiS\nfbYT2GINGNoAOtWxSMxR6wJLCq5huL3v1vdorHTWMdVFYkWCpiMxs+WYoAcHJjlt\nmLwOnxdFFrvr1AgzmxGZCnoB50JUh8eLoOt8TGvtXsYqTmaujTT25hyjvVKK8Eve\nDyAZ5zyQF2HwIw8R1/RioYDrX74Dr1sTGKYePS9lVFXT8NKjR12PahuD1O3tAoOb\nIspwR9kotg5CLUvUsRgd11oAUCNYV9xa8qYFBO7IcQKBgQDI2CeuIrd2ru2A6SSz\nS6+i4OQTE2s171ZW5FcrunInKhmd3M3YPFkQnii4xqYahfLLlkhgy4aAlJ6d+XPj\ndpSeVEFHCK+qsHgKYP1bNPDnlcdm8O6EJ4fSwb1O8aTqBNXMHt2hefNP+2iFIVr+\nl8FTBHVRt7bdvUa8eQHhOy7ZJQKBgQDZPZAEQfGeSnD4z1iQ7FD3kuDUhCLDoKty\nXh/CHlul3UrA8JafL2qXz2QPI91CIPh6rOJq9VU6QZAO0GWSzeludLi0ygHGTPtN\nZwaoYGlOGC/kV62nkGB6mYqQkSUg27qqSAXKgy1BIAY1mqGuDZM6m/31DfiHNC8q\nSYyllN/kcwKBgQCLBbRRwQ4lROh5duhEg3tLz0eQPLzVVJn7A4ujZSdnHKkmsJR7\nvSoZaqDdZgPMEDQD4D6xYa/0iOtShj1FketFvSSCOuz9xbER3hkBbR/j7bVc+CDh\nsUs/A4Q6hOGWa0piRGs9PuDA2FF89Z265OiYwllC+1vFGSNBirFWalT/UQKBgQDO\nDZiWkT3umElDltg4zg2WZlie+p5G1BUKq8CPzV+8mYOYMhuL7du7FtmfirMJUGCf\na3BvZzhpw1oy0vQlJO5u+INh5+F7B/WtWzVza882Zba3bXqnX0hDwXMu4J1I52HM\ntffYOEgqZ4e8PGlywCmQA/oEADZld9fs0kp3nBgphQKBgF+eyl9lnweGuKrgEDUP\ndePkaM5Nri3Lf4dfsoYK/VcVJTn2jTzhqERig91PBPBC8u4osBI4Qf0PnOf1LJn5\nnm3hDi8ex1ESS3mfu3f+aN4xW+c30rgsy35mN1CR/9HcFOW999bYkvrfhszQXylM\ngpzdkS95dXgvQIH1Si4A3CRx\n-----END PRIVATE KEY-----\n",
+  "client_email": "schoolservice-7712d@appspot.gserviceaccount.com",
+  "client_id": "114791451713415994282",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/schoolservice-7712d%40appspot.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

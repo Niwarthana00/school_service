@@ -14,6 +14,8 @@ class IndividualDriverChat extends StatefulWidget {
 class _IndividualDriverChatState extends State<IndividualDriverChat> {
   final _messageController = TextEditingController();
   final _firestore = FirebaseFirestore.instance;
+  final ScrollController _scrollController = ScrollController();
+
   String? studentProfilePicUrl;
   String? studentName;
 
@@ -45,6 +47,17 @@ class _IndividualDriverChatState extends State<IndividualDriverChat> {
         'timestamp': FieldValue.serverTimestamp(),
       });
       _messageController.clear();
+      _scrollToBottom();
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -104,6 +117,14 @@ class _IndividualDriverChatState extends State<IndividualDriverChat> {
     }
   }
 
+  String _formatTime(DateTime? time) {
+    if (time == null) {
+      return '';
+    }
+    final format = DateFormat('h:mm a');
+    return format.format(time);
+  }
+
   Widget _buildMessages() {
     return StreamBuilder(
       stream: _firestore
@@ -116,55 +137,52 @@ class _IndividualDriverChatState extends State<IndividualDriverChat> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
         }
-        final messages = snapshot.data?.docs ?? [];
 
+        final messages = snapshot.data?.docs ?? [];
         Map<String, List<DocumentSnapshot>> groupedMessages = {};
+
+        // Group messages by date
         for (var message in messages) {
           DateTime? messageDate = message['timestamp']?.toDate();
-          String dateKey = _formatDate(messageDate) ?? '';
+          String dateKey = _formatDate(messageDate);
           groupedMessages.putIfAbsent(dateKey, () => []).add(message);
         }
 
         return ListView.builder(
-          reverse: true,
+          controller: _scrollController,
           itemCount: groupedMessages.length,
           itemBuilder: (context, dateIndex) {
-            String dateKey = groupedMessages.keys.toList().reversed.elementAt(dateIndex);
+            String dateKey = groupedMessages.keys.toList()[dateIndex];
             List<DocumentSnapshot> dailyMessages = groupedMessages[dateKey]!;
 
             return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Text(
-                    dateKey,
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
+                // Display date in the center
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Text(
+                      dateKey,
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: dailyMessages.length,
-                  itemBuilder: (context, messageIndex) {
-                    final message = dailyMessages.reversed.toList()[messageIndex];
-                    final isMe = message['type'] == "driver";
-                    return isMe
-                        ? GestureDetector(
-                      onLongPress: () => _showDeleteConfirmationDialog(message),
-                      child: _buildSentMessage(
-                          message['text'],
-                          message['timestamp']?.toDate()
-                      ),
-                    )
-                        : _buildReceivedMessage(
-                        message['text'],
-                        message['timestamp']?.toDate()
-                    );
-                  },
-                ),
+                // Display messages for that date
+                ...dailyMessages.map((message) {
+                  final isMe = message['type'] == "driver";
+                  final messageDate = message['timestamp']?.toDate();
+                  return isMe
+                      ? GestureDetector(
+                    onLongPress: () => _showDeleteConfirmationDialog(message),
+                    child: _buildSentMessage(message['text'], messageDate),
+                  )
+                      : _buildReceivedMessage(message['text'], messageDate);
+                }).toList(),
               ],
             );
           },
@@ -207,7 +225,7 @@ class _IndividualDriverChatState extends State<IndividualDriverChat> {
                   padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Color(0xFFFC995E),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(100), // Increased curve
                     boxShadow: [
                       BoxShadow(
                         color: Colors.grey.withOpacity(0.5),
@@ -253,7 +271,7 @@ class _IndividualDriverChatState extends State<IndividualDriverChat> {
                   padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(100), // Increased curve
                     boxShadow: [
                       BoxShadow(
                         color: Colors.grey.withOpacity(0.5),
@@ -276,44 +294,6 @@ class _IndividualDriverChatState extends State<IndividualDriverChat> {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  String _formatTime(DateTime? time) {
-    if (time == null) {
-      return '';
-    }
-    final format = DateFormat('h:mm a');
-    return format.format(time);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            _buildProfileAvatar(radius: 20),
-            SizedBox(width: 10),
-            Text(studentName ?? 'Chat'),
-            Spacer(),
-            IconButton(
-              icon: Icon(Icons.call, color: Color(0xFFFC995E)),
-              onPressed: () {
-                // Add call functionality here
-              },
-            ),
-          ],
-        ),
-        elevation: 4,
-        shadowColor: Colors.grey.withOpacity(0.5),
-      ),
-      body: Column(
-        children: [
-          Expanded(child: _buildMessages()),
-          _buildMessageInputField(),
         ],
       ),
     );
@@ -348,6 +328,29 @@ class _IndividualDriverChatState extends State<IndividualDriverChat> {
               onPressed: _sendMessage,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            _buildProfileAvatar(radius: 20),
+            SizedBox(width: 10),
+            Text(studentName ?? 'Chat'),
+          ],
+        ),
+        elevation: 4,
+        shadowColor: Colors.grey.withOpacity(0.5),
+      ),
+      body: Column(
+        children: [
+          Expanded(child: _buildMessages()),
+          _buildMessageInputField(),
         ],
       ),
     );

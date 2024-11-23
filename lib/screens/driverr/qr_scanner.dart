@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:school_service/services/notification_service.dart';
 
 enum UserStatus {
   homeDrop,
   morningPickup,
   schoolDrop,
-  schoolPickup
+  schoolPickup,
 }
 
 extension UserStatusExtension on UserStatus {
@@ -36,17 +37,111 @@ class QRScannerScreen extends StatefulWidget {
 }
 
 class _QRScannerScreenState extends State<QRScannerScreen> {
-  bool isUpdatingStatus = false;  // Flag to track if the status update is in progress
-  String? lastScannedCode;  // Variable to store the last scanned QR code
+  bool isUpdatingStatus = false;
+  String? lastScannedCode;
 
-  Future<void> _showSuccessDialog(BuildContext context, String currentStatus, String nextStatus) async {
+  Future<void> _updateUserStatus(String email, BuildContext context) async {
+    if (isUpdatingStatus) return;
+
+    setState(() {
+      isUpdatingStatus = true;
+    });
+
+    if (email == lastScannedCode) {
+      setState(() {
+        isUpdatingStatus = false;
+      });
+      return;
+    }
+
+    lastScannedCode = email;
+
+    Future.delayed(const Duration(seconds: 10), () {
+      setState(() {
+        lastScannedCode = null;
+      });
+    });
+
+    final CollectionReference usersCollection =
+        FirebaseFirestore.instance.collection('users');
+
+    try {
+      final querySnapshot =
+          await usersCollection.where('email', isEqualTo: email).get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final docData = querySnapshot.docs.first.data() as Map<String, dynamic>;
+        final docId = querySnapshot.docs.first.id;
+
+        String currentStatusStr =
+            docData['status'] ?? UserStatus.homeDrop.toShortString();
+        String? fcmToken = docData['fcm_token'];
+
+        UserStatus currentStatus = UserStatus.values.firstWhere(
+          (e) => e.toShortString() == currentStatusStr,
+          orElse: () => UserStatus.homeDrop,
+        );
+
+        UserStatus? nextStatus = currentStatus.getNextStatus();
+
+        if (nextStatus != null) {
+          await usersCollection.doc(docId).update({
+            'status': nextStatus.toShortString(),
+          });
+
+          if (fcmToken != null && fcmToken.isNotEmpty) {
+            final notificationService = NotificationService();
+            try {
+              await notificationService.sendNotification(
+                targetToken: fcmToken, // Use the actual FCM token from the user
+                title: 'Status Updated',
+                body: 'Your status has been updated to ${nextStatus.toShortString()}',
+              );
+            } catch (e) {
+              print('Error sending notification: $e');
+            }
+          }
+
+          if (context.mounted) {
+            await _showSuccessDialog(
+              context,
+              currentStatusStr,
+              nextStatus.toShortString(),
+            );
+          }
+        } else {
+          if (context.mounted) {
+            await _showErrorDialog(
+              context,
+              'This status cannot be updated at this time.',
+            );
+          }
+        }
+      } else {
+        if (context.mounted) {
+          await _showErrorDialog(context, 'User not found.');
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        await _showErrorDialog(context, 'Error: $e');
+      }
+    } finally {
+      setState(() {
+        isUpdatingStatus = false;
+      });
+    }
+  }
+
+  Future<void> _showSuccessDialog(
+      BuildContext context, String currentStatus, String nextStatus) async {
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Row(
-            children: [
+            children: const [
               Icon(Icons.check_circle, color: Colors.green),
               SizedBox(width: 8),
               Text('Status Updated'),
@@ -57,7 +152,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Previous Status: $currentStatus'),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text('New Status: $nextStatus'),
             ],
           ),
@@ -79,7 +174,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Row(
-            children: [
+            children: const [
               Icon(Icons.error, color: Colors.red),
               SizedBox(width: 8),
               Text('Error'),
@@ -97,105 +192,15 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     );
   }
 
-  Future<void> _updateUserStatus(String email, BuildContext context) async {
-    if (isUpdatingStatus) return; // Prevent repeated executions
-    setState(() {
-      isUpdatingStatus = true;  // Set the flag to true when updating status
-    });
-
-
-
-
-    // Check if this QR code has already been scanned
-    if (email == lastScannedCode) {
-      setState(() {
-        isUpdatingStatus = false;  // Reset the flag
-      });
-      return;  // If same QR code, do nothing
-    }
-
-    // Update the last scanned QR code
-    lastScannedCode = email;
-
-    // Clear the lastScannedCode after 10 seconds
-    Future.delayed(Duration(seconds: 10), () {
-      setState(() {
-        lastScannedCode = null; // Clear the lastScannedCode after 5 seconds
-      });
-    });
-
-    final CollectionReference usersCollection = FirebaseFirestore.instance.collection('users');
-
-    try {
-      final querySnapshot = await usersCollection.where('email', isEqualTo: email).get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        final docData = querySnapshot.docs.first.data() as Map<String, dynamic>;
-        final docId = querySnapshot.docs.first.id;
-
-        // Get current status
-        String currentStatusStr = docData['status'] ?? UserStatus.homeDrop.toShortString();
-
-        // Convert string to enum
-        UserStatus currentStatus = UserStatus.values.firstWhere(
-                (e) => e.toShortString() == currentStatusStr,
-            orElse: () => UserStatus.homeDrop
-        );
-
-        // Get next status
-        UserStatus? nextStatus = currentStatus.getNextStatus();
-
-        // Only proceed if there's a valid next status
-        if (nextStatus != null) {
-          // Update the status without confirmation
-          await usersCollection.doc(docId).update({
-            'status': nextStatus.toShortString()
-          });
-
-          // Show success modal
-          if (context.mounted) {
-            await _showSuccessDialog(
-                context,
-                currentStatusStr,
-                nextStatus.toShortString()
-            );
-          }
-        } else {
-          // Show error modal for invalid status update
-          if (context.mounted) {
-            await _showErrorDialog(
-                context,
-                'This status cannot be updated at this time'
-            );
-          }
-        }
-      } else {
-        // Show error modal for user not found
-      }
-    } catch (e) {
-      if (context.mounted) {
-        await _showErrorDialog(context, 'Error: $e');
-      }
-    } finally {
-      setState(() {
-        isUpdatingStatus = false;  // Reset the flag once the operation is complete
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
-
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-
             const Text(
-
               'Scan QR Code',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
@@ -227,4 +232,3 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     );
   }
 }
-

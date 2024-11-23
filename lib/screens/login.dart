@@ -165,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if(notExists){
-       users.add(("$username|$email|$proPic|$password"));
+        users.add(("$username|$email|$proPic|$password"));
       }
       await prefs.setStringList('users', users);
 

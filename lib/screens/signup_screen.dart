@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 import 'package:school_service/providers/auth_provider.dart';
 import 'package:school_service/screens/driverr/add_details.dart';
@@ -19,7 +20,51 @@ class _SignupScreenState extends State<SignupScreen> {
   String _email = '';
   String _password = '';
   String _fullName = '';
-  String _errorMessage = ''; // For modal error messages
+  String _errorMessage = '';
+  String _fcmToken = ''; // New variable to store FCM token
+
+  @override
+  void initState() {
+    super.initState();
+    _getFCMToken();
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('User granted notification permission');
+    } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
+      print('User granted provisional notification permission');
+    } else {
+      print('User declined or has not accepted notification permission');
+    }
+  }
+
+  // Method to get FCM token
+  Future<void> _getFCMToken() async {
+    try {
+      String? token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        setState(() {
+          _fcmToken = token;
+        });
+        print('FCM Token: $_fcmToken'); // Optional: print token for debugging
+      }
+    } catch (e) {
+      print('Error getting FCM token: $e');
+    }
+  }
 
   // Email validation function
   String? _validateEmail(String? value) {
@@ -52,6 +97,7 @@ class _SignupScreenState extends State<SignupScreen> {
     return null;
   }
 
+  // Display error modal
   void _showErrorModal(String message) {
     showDialog(
       context: context,
@@ -82,19 +128,16 @@ class _SignupScreenState extends State<SignupScreen> {
               SizedBox(height: 20),
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).pop(); // Modal එක close කරයි
+                  Navigator.of(context).pop(); // Close modal
                 },
                 child: Text(
                   'OK',
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 15,
-
                   ),
                 ),
-              )
-
-
+              ),
             ],
           ),
         );
@@ -102,6 +145,7 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
+  // Main build method
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -123,7 +167,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   fit: BoxFit.cover,
                 ),
                 Container(
-                  width: double.infinity,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
@@ -152,7 +195,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
-                textAlign: TextAlign.center,
               ),
             ),
           ),
@@ -160,190 +202,160 @@ class _SignupScreenState extends State<SignupScreen> {
           // Card with input fields
           Positioned(
             top: MediaQuery.of(context).size.height * 0.3,
-            left: 0,
-            right: 0,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(0), // No border radius
-                ),
-                elevation: 8,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(height: 40),
-                        // Full Name TextField
-                        TextFormField(
-                          decoration: InputDecoration(
-                            labelText: 'Full Name',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.zero, // No border radius
-                            ),
+            left: 16,
+            right: 16,
+            child: Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero, // No border radius
+              ),
+              elevation: 8,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: 20),
+                      // Full Name Field
+                      TextFormField(
+                        decoration: InputDecoration(
+                          labelText: 'Full Name',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.zero,
                           ),
-                          onChanged: (value) => _fullName = value,
-                          validator: _validateFullName,
                         ),
-                        SizedBox(height: 20),
-                        // Email TextField
-                        TextFormField(
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.zero, // No border radius
-                            ),
-                          ),
-                          onChanged: (value) => _email = value,
-                          validator: _validateEmail,
-                        ),
-                        SizedBox(height: 20),
-                        // Password TextField
-                        TextFormField(
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.zero, // No border radius
-                            ),
-                          ),
-                          onChanged: (value) => _password = value,
-                          validator: _validatePassword,
-                        ),
-                        SizedBox(height: 40),
-                        // Continue Button
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (_formKey.currentState!.validate()) {
-                              try {
-                                // Sign up and save initial user data
-                                await authProvider.signUp(
-                                  _email,
-                                  _password,
-                                  widget.userType ?? '',
-                                  {'name': _fullName},
-                                );
+                        onChanged: (value) => _fullName = value,
+                        validator: _validateFullName,
+                      ),
+                      SizedBox(height: 20),
 
-                                // Navigate to the appropriate details screen
-                                if (widget.userType == 'Driver') {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => DriverDetailsForm(
-                                        userType: widget.userType ?? '',
-                                      ),
-                                    ),
-                                  );
-                                } else if (widget.userType == 'Parent') {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ParentDetailsForm(
-                                        userType: widget.userType ?? '',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                // Show error modal for Firebase exceptions
-                                _showErrorModal(
-                                  e.toString().contains('email-already-in-use')
-                                      ? 'This email is already registered. Please use another email.'
-                                      : 'An error occurred. Please try again.',
-                                );
-                              }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFFFC995E),
-                            padding: EdgeInsets.symmetric(vertical: 15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.zero, // No border radius
-                            ),
-                          ),
-                          child: Text(
-                            'CONTINUE',
-                            style: TextStyle(fontSize: 18, color: Colors.white),
+                      // Email Field
+                      TextFormField(
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.zero,
                           ),
                         ),
-                        SizedBox(height: 20),
-                        // Separator
-                        Row(
-                          children: <Widget>[
-                            Expanded(child: Divider(thickness: 1)),
-                            Padding(
-                              padding:
-                              const EdgeInsets.symmetric(horizontal: 10.0),
-                              child: Text(
-                                'or use',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ),
-                            Expanded(child: Divider(thickness: 1)),
-                          ],
-                        ),
-                        SizedBox(height: 20),
-                        // Add Google Sign-In Button here
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              // Implement Google Sign-In functionality here
-                            },
-                            style: ElevatedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(vertical: 15),
-                              backgroundColor: Colors.white,
-                              side: BorderSide(color: Colors.grey),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(0),
-                              ),
-                            ),
-                            icon: Image.asset(
-                              'assets/images/google.png',
-                              width: 20,
-                              height: 20,
-                            ),
-                            label: Text(
-                              'Login with Google',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                        ),
+                        onChanged: (value) => _email = value,
+                        validator: _validateEmail,
+                      ),
+                      SizedBox(height: 20),
 
-                        // Login link
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Already have an account? ',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
+                      // Password Field
+                      TextFormField(
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                        ),
+                        onChanged: (value) => _password = value,
+                        validator: _validatePassword,
+                      ),
+                      SizedBox(height: 40),
+
+                      // Continue Button
+                      ElevatedButton(
+                        onPressed: () async {
+                          if (_formKey.currentState!.validate()) {
+                            try {
+                              // Sign up with FCM token included
+                              await authProvider.signUp(
+                                _email,
+                                _password,
+                                widget.userType ?? '',
+                                {
+                                  'name': _fullName,
+                                  'fcm_token': _fcmToken, // Include FCM token
+                                },
+                              );
+
+                              if (widget.userType == 'Driver') {
+                                Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => LoginScreen(),
+                                    builder: (context) =>
+                                        DriverDetailsForm(userType: widget.userType ?? ''),
                                   ),
                                 );
-                              },
-                              child: Text(
-                                'Login',
-                                style: TextStyle(color: Color(0xFFFC995E)),
-                              ),
-                            ),
-                          ],
+                              } else if (widget.userType == 'Parent') {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        ParentDetailsForm(userType: widget.userType ?? ''),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              _showErrorModal(
+                                e.toString().contains('email-already-in-use')
+                                    ? 'This email is already registered. Please use another email.'
+                                    : 'An error occurred. Please try again.',
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFFFC995E),
+                          padding: EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
                         ),
-                        SizedBox(height: 20),
-                      ],
-                    ),
+                        child: Text(
+                          'CONTINUE',
+                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        ),
+                      ),
+                      SizedBox(height: 20),
+
+                      // Google Sign-In Button
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          // Implement Google Sign-In
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 15),
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: Colors.grey),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                        ),
+                        icon: Image.asset(
+                          'assets/images/google.png',
+                          width: 20,
+                          height: 20,
+                        ),
+                        label: Text(
+                          'Sign Up with Google',
+                          style: TextStyle(fontSize: 16, color: Colors.black),
+                        ),
+                      ),
+                      SizedBox(height: 20),
+
+                      // Login Link
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('Already have an account? ', style: TextStyle(color: Colors.grey)),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (context) => LoginScreen()),
+                              );
+                            },
+                            child: Text('Login', style: TextStyle(color: Color(0xFFFC995E))),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),

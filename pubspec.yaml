@@ -52,6 +52,11 @@ dependencies:
   shared_preferences: ^2.1.0
   flutter_local_notifications: ^18.0.1
   firebase_messaging: ^15.1.5
+  http: ^1.2.2
+  cloud_functions: ^5.1.5
+  crypto: ^3.0.3
+  pointycastle: ^3.9.1
+  basic_utils: ^5.7.0
 
 
 
@@ -91,6 +96,7 @@ flutter:
     - assets/images/how_to_scan_qr1.png
     - assets/images/how_to_scan_qr2.png
     - assets/images/how_to_scan_qr3.png
+    - assets/keys/schoolservice-7712d-694c4a2f3587.json
 
   #   - images/a_dot_ham.jpeg
 
