@@ -58,8 +58,7 @@ dependencies:
   pointycastle: ^3.9.1
   basic_utils: ^5.7.0
   firebase_admin: ^0.3.0
-
-
+  corsac_jwt: ^1.0.1
 
 
 dev_dependencies:
@@ -97,8 +96,7 @@ flutter:
     - assets/images/how_to_scan_qr1.png
     - assets/images/how_to_scan_qr2.png
     - assets/images/how_to_scan_qr3.png
-    - assets/keys/schoolservice-7712d-694c4a2f3587.json
-
+    - assets/keys/service-account.json
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

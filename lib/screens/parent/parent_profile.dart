@@ -233,13 +233,7 @@ class _ParentProfileState extends State<ParentProfile> {
     );
   }
 
-  void _switchToAnotherAccount(BuildContext context) {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-          (route) => false,
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -349,22 +343,6 @@ class _ParentProfileState extends State<ParentProfile> {
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
-                  ),
-                ),
-              ),
-            ),
-
-
-            GestureDetector(
-              onTap: () => _switchToAnotherAccount(context),
-              child: Container(
-                padding: EdgeInsets.all(12),
-                width: 100,
-                color: Colors.grey[200],
-                child: Center(
-                  child: Text(
-                    'Switch to Another Account',
-                    style: TextStyle(fontSize: 16, color: Color(0xFFFC995E)),
                   ),
                 ),
               ),

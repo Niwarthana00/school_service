@@ -145,6 +145,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
+  corsac_jwt:
+    dependency: "direct main"
+    description:
+      name: corsac_jwt
+      sha256: "045b096a233b325d56143591f603ca2bc3b023212ecc289170849262f4801c79"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   cross_file:
     dependency: transitive
     description:
@@ -912,6 +920,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
+  rsa_pkcs:
+    dependency: transitive
+    description:
+      name: rsa_pkcs
+      sha256: "6e1e03563d2cbd9758d8a562f738b759763d464fd65d32da132153230a0c0395"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
   rxdart:
     dependency: transitive
     description:

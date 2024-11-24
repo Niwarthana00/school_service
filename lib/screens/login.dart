@@ -85,9 +85,13 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
+      // More detailed error print
+      print("Google Sign-In failed with error: $e");
       _showErrorModal('Google Sign-In failed. Please try again.');
     }
   }
+
+
 
   Future<String?> _getUserType(String uid) async {
     try {

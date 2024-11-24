@@ -39,6 +39,22 @@ class QRScannerScreen extends StatefulWidget {
 class _QRScannerScreenState extends State<QRScannerScreen> {
   bool isUpdatingStatus = false;
   String? lastScannedCode;
+  late NotificationService _notificationService;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationService = NotificationService();
+    _initializeNotifications();
+  }
+
+  Future<void> _initializeNotifications() async {
+    try {
+      await _notificationService.initializeMessaging();
+    } catch (e) {
+      print('Error initializing notifications: $e');
+    }
+  }
 
   Future<void> _updateUserStatus(String email, BuildContext context) async {
     if (isUpdatingStatus) return;
@@ -90,10 +106,9 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           });
 
           if (fcmToken != null && fcmToken.isNotEmpty) {
-            final notificationService = NotificationService();
             try {
-              await notificationService.sendNotification(
-                targetToken: fcmToken, // Use the actual FCM token from the user
+              await _notificationService.sendNotification(
+                targetToken: fcmToken,
                 title: 'Status Updated',
                 body: 'Your status has been updated to ${nextStatus.toShortString()}',
               );
