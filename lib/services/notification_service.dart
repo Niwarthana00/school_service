@@ -153,7 +153,6 @@ class NotificationService {
     if (_serviceAccount == null) {
       throw Exception('Service account not initialized');
     }
-
     try {
       final accessToken = await _getAccessToken();
       final url = Uri.parse(
